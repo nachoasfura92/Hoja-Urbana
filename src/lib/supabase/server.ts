@@ -18,8 +18,8 @@ export async function createClient() {
           try {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
           } catch {
-            // Ignorable: setAll fue llamado desde un Server Component.
-            // El proxy (src/proxy.ts) se encarga de refrescar la sesión.
+            // Ignorable: setAll fue llamado desde un Server Component, donde
+            // no se pueden escribir cookies directamente (solo lectura).
           }
         },
       },
