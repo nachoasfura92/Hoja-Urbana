@@ -28,8 +28,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLoginRoute =
-    request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/dev-preview'); // TODO: quitar /dev-preview antes de producción
+  const isLoginRoute = request.nextUrl.pathname.startsWith('/login');
 
   if (!user && !isLoginRoute) {
     const url = request.nextUrl.clone();
