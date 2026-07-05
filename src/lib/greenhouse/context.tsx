@@ -3,13 +3,15 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { defS } from './helpers';
+import { cargarEstadoDesdeTablas, guardarEstadoEnTablas } from './repository';
 import type { EstadoInvernadero } from './types';
 
 // Reemplaza la sincronización con Google Sheets (server.js) por Supabase,
 // manteniendo el mismo patrón: estado en memoria + guardado debounced +
 // respaldo en localStorage si falla la red. Misma clave de storage que el original.
+// Los datos viven en tablas normalizadas (ver repository.ts); acá solo se
+// arma/desarma el mismo objeto EstadoInvernadero que ya usa toda la UI.
 const STORAGE_KEY = 'inv_v9';
-const ROW_ID = 'default';
 const SAVE_DEBOUNCE_MS = 1500;
 
 export type SyncStatus = 'idle' | 'ok' | 'saving' | 'error';
@@ -35,18 +37,10 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
     let cancelled = false;
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from('greenhouse_state')
-          .select('data')
-          .eq('id', ROW_ID)
-          .single();
+        const estado = await cargarEstadoDesdeTablas(supabase);
         if (cancelled) return;
-        if (!error && data?.data) {
-          setState(data.data as EstadoInvernadero);
-          setSyncStatus('ok');
-        } else {
-          setState(defS());
-        }
+        setState(estado);
+        setSyncStatus('ok');
       } catch {
         if (cancelled) return;
         // Igual que el original: si falla la carga, se usa el respaldo local en
@@ -67,11 +61,8 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
     async (payload: EstadoInvernadero) => {
       setSyncStatus('saving');
       try {
-        const { error } = await supabase
-          .from('greenhouse_state')
-          .update({ data: payload, updated_at: new Date().toISOString() })
-          .eq('id', ROW_ID);
-        setSyncStatus(error ? 'error' : 'ok');
+        await guardarEstadoEnTablas(supabase, payload);
+        setSyncStatus('ok');
       } catch {
         setSyncStatus('error');
       }

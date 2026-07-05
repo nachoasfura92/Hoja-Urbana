@@ -103,11 +103,12 @@ export function LoteModal() {
           <div className="grid gap-1">
             <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Historial</h4>
             <div className="max-h-48 overflow-y-auto">
-              {(lote.movimientos || []).map((m, i) => (
-                <div key={i} className="flex gap-2 border-b py-1 text-xs last:border-b-0">
+              {(lote.movimientos || []).map((m) => (
+                <div key={m.id} className="flex gap-2 border-b py-1 text-xs last:border-b-0">
                   <span className="min-w-[62px] shrink-0 font-medium text-muted-foreground">{fd(m.fecha)}</span>
                   <span>
                     {m.accion} — {m.detalle}
+                    {m.autor && <span className="text-muted-foreground"> · por {m.autor}</span>}
                   </span>
                 </div>
               ))}

@@ -11,17 +11,19 @@ export function HistorialPage() {
   return (
     <Card>
       <CardContent>
-        <div className="grid grid-cols-[68px_85px_1fr] gap-2 border-b pb-1.5 text-xs font-medium text-muted-foreground">
+        <div className="grid grid-cols-[68px_85px_1fr_100px] gap-2 border-b pb-1.5 text-xs font-medium text-muted-foreground">
           <span>Fecha</span>
           <span>Acción</span>
           <span>Detalle</span>
+          <span>Por</span>
         </div>
         {historial.length ? (
-          historial.map((h, i) => (
-            <div key={i} className="grid grid-cols-[68px_85px_1fr] gap-2 border-b py-1.5 text-sm last:border-b-0">
+          historial.map((h) => (
+            <div key={h.id} className="grid grid-cols-[68px_85px_1fr_100px] gap-2 border-b py-1.5 text-sm last:border-b-0">
               <span className="font-medium text-muted-foreground">{fd(h.fecha)}</span>
               <span className="font-medium">{h.accion}</span>
               <span>{h.detalle}</span>
+              <span className="truncate text-muted-foreground">{h.autor || '—'}</span>
             </div>
           ))
         ) : (

@@ -11,9 +11,11 @@ export interface Variedad {
 }
 
 export interface Movimiento {
+  id: number;
   fecha: string; // ISO date (yyyy-mm-dd)
   accion: string;
   detalle: string;
+  autor?: string;
 }
 
 export interface Lote {
@@ -68,9 +70,11 @@ export interface Merma {
 }
 
 export interface HistorialEntry {
+  id: number;
   fecha: string;
   accion: string;
   detalle: string;
+  autor?: string;
 }
 
 // Registro estructurado de cada cosecha (para el módulo de historial de
