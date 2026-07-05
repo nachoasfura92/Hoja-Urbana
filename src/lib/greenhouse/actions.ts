@@ -96,7 +96,7 @@ export function confirmarSiembra(draft: EstadoInvernadero, p: ConfirmarSiembraPa
       {
         fecha: p.fechaSiembra,
         accion: 'Siembra',
-        detalle: `${p.plantas} plantas (${p.plantas} cubos · ${fracTubosStr(p.plantas)} tubos)${p.notas ? ' — ' + p.notas : ''}`,
+        detalle: `${p.plantas} plantas (${fracTubosStr(p.plantas)} tubos)${p.notas ? ' — ' + p.notas : ''}`,
       },
     ],
   };
@@ -110,7 +110,7 @@ export function confirmarSiembra(draft: EstadoInvernadero, p: ConfirmarSiembraPa
   log(
     draft,
     'Siembra',
-    `${p.plantas} plantas (${p.plantas} cubos · ${fracTubosStr(p.plantas)} tubos) de ${p.varNombre} — ${fd(p.fechaSiembra)}`
+    `${p.plantas} plantas (${fracTubosStr(p.plantas)} tubos) de ${p.varNombre} — ${fd(p.fechaSiembra)}`
   );
 }
 
@@ -207,6 +207,84 @@ export function cosechar(
     l.bancalId = null;
     l.plantasRestantes = 0;
   }
+}
+
+// Reubica un lote adulto de un bancal a otro, sin cambiar de etapa (a
+// diferencia de ejecutarMovimiento, que avanza plantines→engorda→adulto).
+export interface MoverEntreBancalesParams {
+  loteId: number;
+  bancDestino: string;
+  plantasM: number;
+  fecha: string;
+  nota: string;
+}
+
+export function moverEntreBancales(draft: EstadoInvernadero, params: MoverEntreBancalesParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l) return;
+  const bancOrigen = l.bancalId;
+  const plantasM = Math.min(params.plantasM, l.plantasRestantes);
+  const restantes = l.plantasRestantes - plantasM;
+  if (bancOrigen) remSlot(draft.bancales, bancOrigen, l.varId, plantasM);
+  addSlot(draft.bancales, params.bancDestino, l.varId, l.varNom, plantasM);
+  if (!l.movimientos) l.movimientos = [];
+  const detalle = `${plantasM} plantas (${fracTubosStr(plantasM)} tubos) → Bancal ${params.bancDestino}${params.nota ? ' · ' + params.nota : ''}`;
+  if (restantes > 0) {
+    const nl: Lote = {
+      ...l,
+      id: draft.nextId++,
+      plantas: plantasM,
+      plantasRestantes: plantasM,
+      bancalId: params.bancDestino,
+      movimientos: [{ fecha: params.fecha, accion: 'Reubicación', detalle }],
+    };
+    draft.lotes.push(nl);
+    l.plantasRestantes = restantes;
+    l.movimientos.push({
+      fecha: params.fecha,
+      accion: 'Reubicación',
+      detalle: `${detalle} | ${restantes} plantas permanecen en ${bancOrigen || 'sin bancal'}`,
+    });
+  } else {
+    l.bancalId = params.bancDestino;
+    l.movimientos.push({ fecha: params.fecha, accion: 'Reubicación', detalle });
+  }
+  log(
+    draft,
+    'Reubicación',
+    `${l.varNom}: ${plantasM} plantas (${fracTubosStr(plantasM)} tubos) de ${bancOrigen || 'sin bancal'} → ${params.bancDestino}`
+  );
+}
+
+// Elimina N plantas de un lote (menos que el total deja el resto intacto).
+// Si se marca como merma, se suma al recuento de merma de la etapa actual.
+export interface EliminarPlantasParams {
+  loteId: number;
+  plantas: number;
+  esMerma: boolean;
+  nota: string;
+}
+
+export function eliminarPlantas(draft: EstadoInvernadero, params: EliminarPlantasParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l) return;
+  const p = Math.min(params.plantas, l.plantasRestantes);
+  const restantes = l.plantasRestantes - p;
+  if (l.bancalId) remSlot(draft.bancales, l.bancalId, l.varId, p);
+  if (params.esMerma && l.etapa !== 'cosechado') {
+    if (!draft.merma) draft.merma = { plantines: 0, engorda: 0, adulto: 0 };
+    draft.merma[l.etapa] = (draft.merma[l.etapa] || 0) + p;
+  }
+  const nota = params.nota.trim();
+  const detalle = `${p} plantas (${fracTubosStr(p)} tubos)${params.esMerma ? ' · merma' : ''}${nota ? ' · ' + nota : ''}`;
+  if (restantes > 0) {
+    if (!l.movimientos) l.movimientos = [];
+    l.movimientos.push({ fecha: hoy(), accion: 'Eliminación', detalle });
+    l.plantasRestantes = restantes;
+  } else {
+    draft.lotes = draft.lotes.filter((x) => x.id !== params.loteId);
+  }
+  log(draft, params.esMerma ? 'Merma' : 'Eliminación', `${l.varNom}: ${detalle}`);
 }
 
 export function limpiarBancal(draft: EstadoInvernadero, k: string) {

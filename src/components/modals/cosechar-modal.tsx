@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/dashboard/date-picker';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { cosechar } from '@/lib/greenhouse/actions';
@@ -64,7 +65,7 @@ export function CosecharModal() {
           </div>
           <div className="grid gap-1.5">
             <Label>Fecha cosecha</Label>
-            <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <DatePicker value={fecha} onChange={setFecha} />
           </div>
           <div className="grid gap-1.5">
             <Label>Notas</Label>

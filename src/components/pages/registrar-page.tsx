@@ -13,6 +13,7 @@ import { useGreenhouse } from '@/lib/greenhouse/context';
 import { confirmarSiembra } from '@/lib/greenhouse/actions';
 import { evaluarSiembra, fd, fmas, fracTubosStr, gv, hoy, man, sembradoEn } from '@/lib/greenhouse/helpers';
 import { AlertRow } from '@/components/dashboard/alert-row';
+import { DatePicker } from '@/components/dashboard/date-picker';
 import { ValidarSiembraModal } from '@/components/modals/validar-siembra-modal';
 
 export function RegistrarPage() {
@@ -26,6 +27,14 @@ export function RegistrarPage() {
   const [notas, setNotas] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
+
+  const variedadItems = useMemo(
+    () =>
+      Object.fromEntries(
+        (state.vars || []).map((v) => [String(v.id), v.marca ? `${v.nombre} — ${v.marca}` : v.nombre])
+      ),
+    [state.vars]
+  );
 
   const vIdNum = vId ? parseInt(vId, 10) : null;
   const evaluacion = useMemo(
@@ -171,7 +180,7 @@ export function RegistrarPage() {
         <CardContent className="grid gap-3">
           <div className="grid gap-1.5">
             <Label>Variedad</Label>
-            <Select value={vId} onValueChange={(v) => setVId(v ?? '')}>
+            <Select value={vId} onValueChange={(v) => setVId(v ?? '')} items={variedadItems}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Seleccionar..." />
               </SelectTrigger>
@@ -187,7 +196,7 @@ export function RegistrarPage() {
           </div>
           <div className="grid gap-1.5">
             <Label>Fecha de siembra</Label>
-            <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <DatePicker value={fecha} onChange={setFecha} />
           </div>
           <div className="grid gap-1.5">
             <Label>Cantidad de plantas</Label>
@@ -219,9 +228,7 @@ export function RegistrarPage() {
             </>
           )}
           {plantas > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {plantas} cubos necesarios · {fracTubosStr(plantas)} tubos equivalentes
-            </p>
+            <p className="text-xs text-muted-foreground">{fracTubosStr(plantas)} tubos equivalentes</p>
           )}
 
           <div className="grid grid-cols-3 gap-3">

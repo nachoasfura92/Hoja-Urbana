@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,8 @@ const FRECUENCIAS = [
   { value: '30', label: 'Mensual' },
 ];
 
+const FRECUENCIA_ITEMS = Object.fromEntries(FRECUENCIAS.map((f) => [f.value, f.label]));
+
 export function PlanPage() {
   const { state, update } = useGreenhouse();
   const [vId, setVId] = useState('');
@@ -33,6 +35,14 @@ export function PlanPage() {
   const [dp, setDp] = useState(14);
   const [de, setDe] = useState(21);
   const [da, setDa] = useState(21);
+
+  const variedadItems = useMemo(
+    () =>
+      Object.fromEntries(
+        (state.vars || []).map((v) => [String(v.id), v.marca ? `${v.nombre} — ${v.marca}` : v.nombre])
+      ),
+    [state.vars]
+  );
 
   function handleAgregar() {
     const vIdNum = vId ? parseInt(vId, 10) : null;
@@ -66,7 +76,7 @@ export function PlanPage() {
         <CardContent className="grid gap-3">
           <div className="grid gap-1.5">
             <Label>Variedad</Label>
-            <Select value={vId} onValueChange={(v) => setVId(v ?? '')}>
+            <Select value={vId} onValueChange={(v) => setVId(v ?? '')} items={variedadItems}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Seleccionar..." />
               </SelectTrigger>
@@ -82,7 +92,7 @@ export function PlanPage() {
           </div>
           <div className="grid gap-1.5">
             <Label>Frecuencia</Label>
-            <Select value={freq} onValueChange={(v) => setFreq(v ?? '7')}>
+            <Select value={freq} onValueChange={(v) => setFreq(v ?? '7')} items={FRECUENCIA_ITEMS}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>

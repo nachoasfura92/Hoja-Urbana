@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -67,7 +68,11 @@ export function Topbar({ activeTab, userEmail }: { activeTab: TabId; userEmail?:
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {userEmail && <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{userEmail}</DropdownMenuLabel>}
+            {userEmail && (
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{userEmail}</DropdownMenuLabel>
+              </DropdownMenuGroup>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={handleLogout}>
               <LogOut />

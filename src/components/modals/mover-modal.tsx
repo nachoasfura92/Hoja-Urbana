@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertRow } from '@/components/dashboard/alert-row';
+import { DatePicker } from '@/components/dashboard/date-picker';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
-import { ejecutarMovimiento, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
+import { ejecutarMovimiento, moverEntreBancales, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
 import { PT } from '@/lib/greenhouse/constants';
 import { fracTubosStr, getBanc, hoy, plantasEnBanc } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
@@ -42,31 +43,43 @@ export function MoverModal() {
     setErrorBancal(false);
   }
 
+  // Lotes adultos ya no cambian de etapa: "Mover" pasa a significar
+  // "reubicar a otro bancal de adulto" en vez de avanzar de etapa.
+  const modoReubicar = lote?.etapa === 'adulto';
+  const sig = lote ? SIGUIENTE[lote.etapa] : undefined;
+
+  const opciones = useMemo(() => {
+    if (!lote) return [];
+    const tipo = modoReubicar ? 'adu' : sig === 'engorda' ? 'eng' : 'adu';
+    const maxBanc = modoReubicar ? 16 : sig === 'engorda' ? 8 : 16;
+    const maxP = tipo === 'eng' ? 20 * PT : 10 * PT;
+    return Array.from({ length: maxBanc }, (_, idx) => {
+      const i = idx + 1;
+      const k = `${tipo}_${i}`;
+      if (modoReubicar && k === lote.bancalId) return null;
+      const usP = plantasEnBanc(state.bancales, k);
+      const libP = maxP - usP;
+      const slots = getBanc(state.bancales, k);
+      const detalle = slots.length ? slots.map((s) => `${s.varNom}×${s.plantas}pl`).join(', ') : 'vacío';
+      return {
+        key: k,
+        label: `${tipo === 'eng' ? 'E' : 'A'}${i} — ${fracTubosStr(libP)} tubos libres (${detalle})`,
+        libP,
+        disabled: libP <= 0,
+      };
+    }).filter((o): o is NonNullable<typeof o> => o !== null);
+  }, [lote, modoReubicar, sig, state.bancales]);
+
+  const bancalItems = useMemo(() => Object.fromEntries(opciones.map((o) => [o.key, o.label])), [opciones]);
+
   if (!lote) {
     return <Dialog open={false} onOpenChange={() => closeMover()} />;
   }
+  if (!modoReubicar && !sig) return null;
 
-  const sig = SIGUIENTE[lote.etapa];
-  if (!sig) return null;
-  const tipo = sig === 'engorda' ? 'eng' : 'adu';
-  const maxBanc = sig === 'engorda' ? 8 : 16;
-  const maxP = sig === 'engorda' ? 20 * PT : 10 * PT;
-  const obligatorio = lote.etapa === 'plantines';
-
-  const opciones = Array.from({ length: maxBanc }, (_, idx) => {
-    const i = idx + 1;
-    const k = `${tipo}_${i}`;
-    const usP = plantasEnBanc(state.bancales, k);
-    const libP = maxP - usP;
-    const slots = getBanc(state.bancales, k);
-    const detalle = slots.length ? slots.map((s) => `${s.varNom}×${s.plantas}pl`).join(', ') : 'vacío';
-    return {
-      key: k,
-      label: `${sig === 'engorda' ? 'E' : 'A'}${i} — ${fracTubosStr(libP)} tubos libres (${detalle})`,
-      libP,
-      disabled: libP <= 0,
-    };
-  });
+  const tipo = modoReubicar ? 'adu' : sig === 'engorda' ? 'eng' : 'adu';
+  const maxP = tipo === 'eng' ? 20 * PT : 10 * PT;
+  const obligatorio = modoReubicar || lote.etapa === 'plantines';
 
   const libreSeleccionado = bancKey ? opciones.find((o) => o.key === bancKey)?.libP ?? null : null;
   const excedeCapacidad = bancKey && libreSeleccionado !== null && plantas > libreSeleccionado;
@@ -85,6 +98,15 @@ export function MoverModal() {
         return;
       }
     }
+
+    if (modoReubicar) {
+      update((draft) =>
+        moverEntreBancales(draft, { loteId: lote!.id, bancDestino: bancKey, plantasM, fecha: fechaMov, nota })
+      );
+      closeMover();
+      return;
+    }
+
     const restantes = lote!.plantasRestantes - plantasM;
     const params: EjecutarMovimientoParams = {
       loteId: lote!.id,
@@ -117,17 +139,21 @@ export function MoverModal() {
       <Dialog open={!pending && moverId != null} onOpenChange={(o) => !o && closeMover()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {lote.varNom}: {lote.etapa} → {sig}
-            </DialogTitle>
+            <DialogTitle>{modoReubicar ? `${lote.varNom}: mover a otro bancal` : `${lote.varNom}: ${lote.etapa} → ${sig}`}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="rounded-md bg-muted/60 px-3 py-2 text-sm">
               Plantas disponibles: <strong>{lote.plantasRestantes}</strong> ({fracTubosStr(lote.plantasRestantes)} tubos)
+              {modoReubicar && (
+                <>
+                  <br />
+                  Bancal actual: <strong>{lote.bancalId || 'sin asignar'}</strong>
+                </>
+              )}
             </div>
             <div className="grid gap-1.5">
               <Label>Fecha del movimiento</Label>
-              <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+              <DatePicker value={fecha} onChange={setFecha} />
             </div>
             <div className="grid gap-1.5">
               <Label>
@@ -139,6 +165,7 @@ export function MoverModal() {
                   setBancKey(v ?? '');
                   setErrorBancal(false);
                 }}
+                items={bancalItems}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="-- Selecciona bancal --" />

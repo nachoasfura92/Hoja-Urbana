@@ -35,7 +35,6 @@ export function ValidarSiembraModal({
             <Row label="Variedad" value={variedad.nombre} />
             <Row label="Fecha de siembra" value={fd(fechaSiembra)} />
             <Row label="Plantas" value={String(plantas)} />
-            <Row label="Cubos necesarios" value={`${plantas} cubos`} />
             <Row label="Tubos equivalentes" value={`${fracTubosStr(plantas)} tubos`} />
           </div>
 

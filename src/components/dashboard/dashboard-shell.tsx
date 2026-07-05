@@ -57,19 +57,30 @@ function DashboardContent({ userEmail }: { userEmail?: string | null }) {
       <SidebarInset>
         <Topbar activeTab={activeTab} userEmail={userEmail} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {TABS.map((tab) => (
-            <div key={tab} className={tab === activeTab ? '' : 'hidden'}>
-              {tab === 'resumen' && <ResumenPage />}
-              {tab === 'registrar' && <RegistrarPage />}
-              {tab === 'mesa' && <MesaPage />}
-              {tab === 'bancales' && <BancalesPage />}
-              {tab === 'venta' && <VentaPage />}
-              {tab === 'plan' && <PlanPage />}
-              {tab === 'inventario' && <InventarioPage />}
-              {tab === 'variedades' && <VariedadesPage />}
-              {tab === 'historial' && <HistorialPage />}
-            </div>
-          ))}
+          {TABS.map((tab) => {
+            // El gráfico de Venta (recharts) no mide bien su tamaño si se
+            // monta oculto (display:none), así que esa pestaña se monta y
+            // desmonta en vez de solo ocultarse como el resto.
+            if (tab === 'venta') {
+              return tab === activeTab ? (
+                <div key={tab}>
+                  <VentaPage />
+                </div>
+              ) : null;
+            }
+            return (
+              <div key={tab} className={tab === activeTab ? '' : 'hidden'}>
+                {tab === 'resumen' && <ResumenPage />}
+                {tab === 'registrar' && <RegistrarPage />}
+                {tab === 'mesa' && <MesaPage />}
+                {tab === 'bancales' && <BancalesPage />}
+                {tab === 'plan' && <PlanPage />}
+                {tab === 'inventario' && <InventarioPage />}
+                {tab === 'variedades' && <VariedadesPage />}
+                {tab === 'historial' && <HistorialPage />}
+              </div>
+            );
+          })}
         </main>
       </SidebarInset>
       <LoteModal />

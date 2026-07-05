@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Box, LeafyGreen, Package, Sprout } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,11 @@ export function InventarioPage() {
   const [cuboQty, setCuboQty] = useState('');
   const [semVarId, setSemVarId] = useState('');
   const [semQty, setSemQty] = useState('');
+
+  const variedadItems = useMemo(
+    () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), v.nombre])),
+    [state.vars]
+  );
 
   function handleAdjC(dir: 1 | -1) {
     const n = parseInt(cuboQty, 10) || 0;
@@ -93,7 +98,7 @@ export function InventarioPage() {
             </div>
             <Separator className="my-3" />
             <Label>Variedad</Label>
-            <Select value={semVarId} onValueChange={(v) => setSemVarId(v ?? '')}>
+            <Select value={semVarId} onValueChange={(v) => setSemVarId(v ?? '')} items={variedadItems}>
               <SelectTrigger className="mt-1.5 w-full">
                 <SelectValue placeholder="Seleccionar..." />
               </SelectTrigger>
