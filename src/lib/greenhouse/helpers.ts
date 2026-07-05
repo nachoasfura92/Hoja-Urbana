@@ -2,7 +2,7 @@
 // No se cambia ningún cálculo: fechas, tubos/plantas, etc. se comportan igual.
 
 import { PT, COLORS_VAR } from './constants';
-import type { Bancales, BancalSlot, EstadoInvernadero, Lote, PlanItem, Variedad } from './types';
+import type { Bancales, BancalSlot, CosechaRecord, EstadoInvernadero, Lote, PlanItem, Variedad } from './types';
 
 export function hoy(): string {
   return new Date().toISOString().split('T')[0];
@@ -187,6 +187,74 @@ export function defS(): EstadoInvernadero {
     inventario: { cubos: 500, semillas: {} },
     merma: { plantines: 0, engorda: 0, adulto: 0 },
     historial: [],
+    cosechas: [],
     nextId: 1,
   };
+}
+
+// ── Historial de cosechas (filtros por variedad / semana / mes) ────────────
+
+export type PeriodoCosecha = 'todo' | 'semana' | 'semana_pasada' | 'mes' | 'mes_pasado';
+
+export const PERIODOS_COSECHA: { value: PeriodoCosecha; label: string }[] = [
+  { value: 'todo', label: 'Todo' },
+  { value: 'semana', label: 'Esta semana' },
+  { value: 'semana_pasada', label: 'Semana pasada' },
+  { value: 'mes', label: 'Este mes' },
+  { value: 'mes_pasado', label: 'Mes pasado' },
+];
+
+// Semana = domingo a sábado, igual que DIAS_L (domingo primero).
+function rangoPeriodo(periodo: PeriodoCosecha): { desde: string; hasta: string } | null {
+  if (periodo === 'todo') return null;
+  const hoyD = new Date();
+  const inicioSemanaActual = new Date(hoyD);
+  inicioSemanaActual.setDate(hoyD.getDate() - hoyD.getDay());
+
+  if (periodo === 'semana') {
+    const fin = new Date(inicioSemanaActual);
+    fin.setDate(fin.getDate() + 6);
+    return { desde: iso(inicioSemanaActual), hasta: iso(fin) };
+  }
+  if (periodo === 'semana_pasada') {
+    const inicio = new Date(inicioSemanaActual);
+    inicio.setDate(inicio.getDate() - 7);
+    const fin = new Date(inicio);
+    fin.setDate(fin.getDate() + 6);
+    return { desde: iso(inicio), hasta: iso(fin) };
+  }
+  if (periodo === 'mes') {
+    const inicio = new Date(hoyD.getFullYear(), hoyD.getMonth(), 1);
+    const fin = new Date(hoyD.getFullYear(), hoyD.getMonth() + 1, 0);
+    return { desde: iso(inicio), hasta: iso(fin) };
+  }
+  // mes_pasado
+  const inicio = new Date(hoyD.getFullYear(), hoyD.getMonth() - 1, 1);
+  const fin = new Date(hoyD.getFullYear(), hoyD.getMonth(), 0);
+  return { desde: iso(inicio), hasta: iso(fin) };
+}
+
+function iso(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+export function filtrarCosechas(
+  cosechas: CosechaRecord[],
+  filtros: { varId?: number | null; periodo?: PeriodoCosecha }
+): CosechaRecord[] {
+  const rango = rangoPeriodo(filtros.periodo || 'todo');
+  return (cosechas || [])
+    .filter((c) => !filtros.varId || c.varId === filtros.varId)
+    .filter((c) => !rango || (c.fecha >= rango.desde && c.fecha <= rango.hasta))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+}
+
+export function resumenCosechasPorVariedad(cosechas: CosechaRecord[]): { varId: number; varNom: string; plantas: number }[] {
+  const map = new Map<number, { varId: number; varNom: string; plantas: number }>();
+  (cosechas || []).forEach((c) => {
+    const actual = map.get(c.varId);
+    if (actual) actual.plantas += c.plantas;
+    else map.set(c.varId, { varId: c.varId, varNom: c.varNom, plantas: c.plantas });
+  });
+  return [...map.values()].sort((a, b) => b.plantas - a.plantas);
 }

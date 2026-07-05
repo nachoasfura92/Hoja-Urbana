@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { GreenhouseProvider, useGreenhouse } from '@/lib/greenhouse/context';
 import { ModalsProvider } from '@/lib/greenhouse/modals-context';
+import { CurrentUserProvider } from '@/lib/auth/current-user-context';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppSidebar } from './app-sidebar';
 import { Topbar } from './topbar';
 import { SyncStatus } from './sync-status';
+import { NamePromptDialog } from './name-prompt-dialog';
 import type { TabId } from '@/lib/greenhouse/constants';
 import { ResumenPage } from '@/components/pages/resumen-page';
 import { RegistrarPage } from '@/components/pages/registrar-page';
@@ -17,6 +19,7 @@ import { VentaPage } from '@/components/pages/venta-page';
 import { PlanPage } from '@/components/pages/plan-page';
 import { InventarioPage } from '@/components/pages/inventario-page';
 import { VariedadesPage } from '@/components/pages/variedades-page';
+import { CosechasPage } from '@/components/pages/cosechas-page';
 import { HistorialPage } from '@/components/pages/historial-page';
 import { LoteModal } from '@/components/modals/lote-modal';
 import { MoverModal } from '@/components/modals/mover-modal';
@@ -32,6 +35,7 @@ const TABS: TabId[] = [
   'plan',
   'inventario',
   'variedades',
+  'cosechas',
   'historial',
 ];
 
@@ -77,6 +81,7 @@ function DashboardContent({ userEmail }: { userEmail?: string | null }) {
                 {tab === 'plan' && <PlanPage />}
                 {tab === 'inventario' && <InventarioPage />}
                 {tab === 'variedades' && <VariedadesPage />}
+                {tab === 'cosechas' && <CosechasPage />}
                 {tab === 'historial' && <HistorialPage />}
               </div>
             );
@@ -88,16 +93,19 @@ function DashboardContent({ userEmail }: { userEmail?: string | null }) {
       <CosecharModal />
       <BancalModal />
       <SyncStatus />
+      <NamePromptDialog />
     </SidebarProvider>
   );
 }
 
 export function DashboardShell({ userEmail }: { userEmail?: string | null }) {
   return (
-    <GreenhouseProvider>
-      <ModalsProvider>
-        <DashboardContent userEmail={userEmail} />
-      </ModalsProvider>
-    </GreenhouseProvider>
+    <CurrentUserProvider>
+      <GreenhouseProvider>
+        <ModalsProvider>
+          <DashboardContent userEmail={userEmail} />
+        </ModalsProvider>
+      </GreenhouseProvider>
+    </CurrentUserProvider>
   );
 }

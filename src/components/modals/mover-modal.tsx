@@ -11,6 +11,7 @@ import { AlertRow } from '@/components/dashboard/alert-row';
 import { DatePicker } from '@/components/dashboard/date-picker';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
+import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { ejecutarMovimiento, moverEntreBancales, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
 import { PT } from '@/lib/greenhouse/constants';
 import { fracTubosStr, getBanc, hoy, plantasEnBanc } from '@/lib/greenhouse/helpers';
@@ -21,6 +22,8 @@ const SIGUIENTE: Partial<Record<Etapa, Etapa>> = { plantines: 'engorda', engorda
 export function MoverModal() {
   const { state, update } = useGreenhouse();
   const { moverId, closeMover } = useModals();
+  const { displayName, email } = useCurrentUser();
+  const autor = displayName || email || undefined;
   const lote = moverId != null ? state.lotes.find((l) => l.id === moverId) : null;
 
   const [fecha, setFecha] = useState(hoy());
@@ -101,7 +104,7 @@ export function MoverModal() {
 
     if (modoReubicar) {
       update((draft) =>
-        moverEntreBancales(draft, { loteId: lote!.id, bancDestino: bancKey, plantasM, fecha: fechaMov, nota })
+        moverEntreBancales(draft, { loteId: lote!.id, bancDestino: bancKey, plantasM, fecha: fechaMov, nota, autor })
       );
       closeMover();
       return;
@@ -118,6 +121,7 @@ export function MoverModal() {
       restantes,
       etapaAnt: lote!.etapa,
       mermaRes: null,
+      autor,
     };
     if (restantes > 0) {
       setPending(params);

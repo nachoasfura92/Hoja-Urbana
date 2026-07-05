@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useGreenhouse } from '@/lib/greenhouse/context';
+import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra } from '@/lib/greenhouse/actions';
 import { evaluarSiembra, fd, fmas, fracTubosStr, gv, hoy, man, sembradoEn } from '@/lib/greenhouse/helpers';
 import { AlertRow } from '@/components/dashboard/alert-row';
@@ -18,6 +19,7 @@ import { ValidarSiembraModal } from '@/components/modals/validar-siembra-modal';
 
 export function RegistrarPage() {
   const { state, update } = useGreenhouse();
+  const { displayName, email } = useCurrentUser();
   const [vId, setVId] = useState('');
   const [fecha, setFecha] = useState(hoy());
   const [plantas, setPlantas] = useState(20);
@@ -69,6 +71,7 @@ export function RegistrarPage() {
         de,
         da,
         notas,
+        autor: displayName || email || undefined,
       });
     });
     setModalOpen(false);

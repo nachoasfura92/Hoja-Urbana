@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   ClipboardList,
   History,
@@ -10,6 +11,7 @@ import {
   Package,
   Route,
   Sprout,
+  Wheat,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -48,23 +50,46 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { id: 'plan', label: 'Plan siembra', icon: Route },
       { id: 'inventario', label: 'Inventario', icon: Package },
       { id: 'variedades', label: 'Variedades', icon: Leaf },
+      { id: 'cosechas', label: 'Historial cosechas', icon: Wheat },
       { id: 'historial', label: 'Historial', icon: History },
     ],
   },
 ];
 
+function SidebarLogo() {
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  if (logoFailed) {
+    return (
+      <div className="flex items-center gap-2 px-2 py-1.5">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+          <Sprout className="size-4" />
+        </div>
+        <span className="truncate font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
+          Hoja Urbana
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center px-2 py-1.5 group-data-[collapsible=icon]:justify-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo.png"
+        alt="Hoja Urbana"
+        className="h-8 w-auto max-w-full object-contain group-data-[collapsible=icon]:h-7"
+        onError={() => setLogoFailed(true)}
+      />
+    </div>
+  );
+}
+
 export function AppSidebar({ active, onSelect }: { active: TabId; onSelect: (tab: TabId) => void }) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-            <Sprout className="size-4" />
-          </div>
-          <span className="truncate font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-            Hoja Urbana
-          </span>
-        </div>
+        <SidebarLogo />
       </SidebarHeader>
       <SidebarContent>
         {NAV.map((group) => (

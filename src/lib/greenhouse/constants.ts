@@ -35,6 +35,7 @@ export type TabId =
   | 'plan'
   | 'inventario'
   | 'variedades'
+  | 'cosechas'
   | 'historial';
 
 export const TITLES: Record<TabId, string> = {
@@ -46,5 +47,6 @@ export const TITLES: Record<TabId, string> = {
   plan: 'Plan de siembra',
   inventario: 'Inventario',
   variedades: 'Variedades',
+  cosechas: 'Historial de cosechas',
   historial: 'Historial',
 };

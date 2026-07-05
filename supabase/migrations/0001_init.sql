@@ -25,6 +25,7 @@ values (
     "inventario": {"cubos": 500, "semillas": {}},
     "merma": {"plantines": 0, "engorda": 0, "adulto": 0},
     "historial": [],
+    "cosechas": [],
     "nextId": 1
   }'::jsonb
 )

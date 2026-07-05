@@ -74,9 +74,11 @@ export interface ConfirmarSiembraParams {
   de: number;
   da: number;
   notas: string;
+  autor?: string;
 }
 
 export function confirmarSiembra(draft: EstadoInvernadero, p: ConfirmarSiembraParams) {
+  const porAutor = p.autor ? ` · por ${p.autor}` : '';
   const lote: Lote = {
     id: draft.nextId++,
     varId: p.vId,
@@ -96,7 +98,7 @@ export function confirmarSiembra(draft: EstadoInvernadero, p: ConfirmarSiembraPa
       {
         fecha: p.fechaSiembra,
         accion: 'Siembra',
-        detalle: `${p.plantas} plantas (${fracTubosStr(p.plantas)} tubos)${p.notas ? ' — ' + p.notas : ''}`,
+        detalle: `${p.plantas} plantas (${fracTubosStr(p.plantas)} tubos)${p.notas ? ' — ' + p.notas : ''}${porAutor}`,
       },
     ],
   };
@@ -110,7 +112,7 @@ export function confirmarSiembra(draft: EstadoInvernadero, p: ConfirmarSiembraPa
   log(
     draft,
     'Siembra',
-    `${p.plantas} plantas (${fracTubosStr(p.plantas)} tubos) de ${p.varNombre} — ${fd(p.fechaSiembra)}`
+    `${p.plantas} plantas (${fracTubosStr(p.plantas)} tubos) de ${p.varNombre} — ${fd(p.fechaSiembra)}${porAutor}`
   );
 }
 
@@ -133,12 +135,14 @@ export interface EjecutarMovimientoParams {
   restantes: number;
   etapaAnt: Etapa;
   mermaRes: 'merma' | 'pendiente' | null;
+  autor?: string;
 }
 
 export function ejecutarMovimiento(draft: EstadoInvernadero, params: EjecutarMovimientoParams) {
   const l = draft.lotes.find((x) => x.id === params.loteId);
   if (!l) return;
-  const { sig, fechaMov, bancKey, plantasM, nota, restantes, etapaAnt, mermaRes } = params;
+  const { sig, fechaMov, bancKey, plantasM, nota, restantes, etapaAnt, mermaRes, autor } = params;
+  const porAutor = autor ? ` · por ${autor}` : '';
   if (bancKey) addSlot(draft.bancales, bancKey, l.varId, l.varNom, plantasM);
   if (!l.movimientos) l.movimientos = [];
   const bL = bancKey ? ` → Bancal ${bancKey}` : '';
@@ -147,7 +151,7 @@ export function ejecutarMovimiento(draft: EstadoInvernadero, params: EjecutarMov
   l.movimientos.push({
     fecha: fechaMov,
     accion: `→ ${sig}`,
-    detalle: `${plantasM} plantas (${fracTubosStr(plantasM)} tubos)${bL}${nota ? ' · ' + nota : ''}${mT}${pT}`,
+    detalle: `${plantasM} plantas (${fracTubosStr(plantasM)} tubos)${bL}${nota ? ' · ' + nota : ''}${mT}${pT}${porAutor}`,
   });
   if (mermaRes === 'merma' && restantes > 0) {
     if (!draft.merma) draft.merma = { plantines: 0, engorda: 0, adulto: 0 };
@@ -181,25 +185,37 @@ export function ejecutarMovimiento(draft: EstadoInvernadero, params: EjecutarMov
     l.bancalId = bancKey || l.bancalId;
     if (sig === 'adulto') l.fechaVenta = fmas(fechaMov, l.da);
   }
-  log(draft, 'Movimiento', `${l.varNom}: ${etapaAnt}→${sig} | ${plantasM} plantas (${fracTubosStr(plantasM)} tubos)${bL}`);
+  log(draft, 'Movimiento', `${l.varNom}: ${etapaAnt}→${sig} | ${plantasM} plantas (${fracTubosStr(plantasM)} tubos)${bL}${porAutor}`);
 }
 
 export function cosechar(
   draft: EstadoInvernadero,
-  params: { loteId: number; plantas: number; fecha: string; nota: string }
+  params: { loteId: number; plantas: number; fecha: string; nota: string; autor?: string }
 ) {
   const l = draft.lotes.find((x) => x.id === params.loteId);
   if (!l) return;
   const p = Math.min(params.plantas || l.plantasRestantes, l.plantasRestantes);
   const rest = l.plantasRestantes - p;
+  const porAutor = params.autor ? ` · por ${params.autor}` : '';
   if (l.bancalId) remSlot(draft.bancales, l.bancalId, l.varId, p);
   if (!l.movimientos) l.movimientos = [];
   l.movimientos.push({
     fecha: params.fecha,
     accion: 'Cosecha',
-    detalle: `${p} plantas (${fracTubosStr(p)} tubos)${params.nota ? ' · ' + params.nota : ''}${rest > 0 ? ' | ' + rest + ' restantes' : ''}`,
+    detalle: `${p} plantas (${fracTubosStr(p)} tubos)${params.nota ? ' · ' + params.nota : ''}${rest > 0 ? ' | ' + rest + ' restantes' : ''}${porAutor}`,
   });
-  log(draft, 'Cosecha', `${l.varNom}: ${p} plantas (${fracTubosStr(p)} tubos)`);
+  log(draft, 'Cosecha', `${l.varNom}: ${p} plantas (${fracTubosStr(p)} tubos)${porAutor}`);
+  if (!draft.cosechas) draft.cosechas = [];
+  draft.cosechas.push({
+    id: draft.nextId++,
+    loteId: l.id,
+    varId: l.varId,
+    varNom: l.varNom,
+    fecha: params.fecha,
+    plantas: p,
+    nota: params.nota || undefined,
+    autor: params.autor,
+  });
   if (rest > 0) {
     l.plantasRestantes = rest;
   } else {
@@ -217,6 +233,7 @@ export interface MoverEntreBancalesParams {
   plantasM: number;
   fecha: string;
   nota: string;
+  autor?: string;
 }
 
 export function moverEntreBancales(draft: EstadoInvernadero, params: MoverEntreBancalesParams) {
@@ -225,10 +242,11 @@ export function moverEntreBancales(draft: EstadoInvernadero, params: MoverEntreB
   const bancOrigen = l.bancalId;
   const plantasM = Math.min(params.plantasM, l.plantasRestantes);
   const restantes = l.plantasRestantes - plantasM;
+  const porAutor = params.autor ? ` · por ${params.autor}` : '';
   if (bancOrigen) remSlot(draft.bancales, bancOrigen, l.varId, plantasM);
   addSlot(draft.bancales, params.bancDestino, l.varId, l.varNom, plantasM);
   if (!l.movimientos) l.movimientos = [];
-  const detalle = `${plantasM} plantas (${fracTubosStr(plantasM)} tubos) → Bancal ${params.bancDestino}${params.nota ? ' · ' + params.nota : ''}`;
+  const detalle = `${plantasM} plantas (${fracTubosStr(plantasM)} tubos) → Bancal ${params.bancDestino}${params.nota ? ' · ' + params.nota : ''}${porAutor}`;
   if (restantes > 0) {
     const nl: Lote = {
       ...l,
@@ -252,7 +270,7 @@ export function moverEntreBancales(draft: EstadoInvernadero, params: MoverEntreB
   log(
     draft,
     'Reubicación',
-    `${l.varNom}: ${plantasM} plantas (${fracTubosStr(plantasM)} tubos) de ${bancOrigen || 'sin bancal'} → ${params.bancDestino}`
+    `${l.varNom}: ${plantasM} plantas (${fracTubosStr(plantasM)} tubos) de ${bancOrigen || 'sin bancal'} → ${params.bancDestino}${porAutor}`
   );
 }
 

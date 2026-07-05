@@ -73,6 +73,20 @@ export interface HistorialEntry {
   detalle: string;
 }
 
+// Registro estructurado de cada cosecha (para el módulo de historial de
+// cosechas, filtrable por variedad/semana/mes). Se agrega en confirmarCosecha,
+// además del registro de texto que ya se guardaba en movimientos/historial.
+export interface CosechaRecord {
+  id: number;
+  loteId: number;
+  varId: number;
+  varNom: string;
+  fecha: string;
+  plantas: number;
+  nota?: string;
+  autor?: string;
+}
+
 export interface EstadoInvernadero {
   vars: Variedad[];
   lotes: Lote[];
@@ -81,5 +95,6 @@ export interface EstadoInvernadero {
   inventario: Inventario;
   merma: Merma;
   historial: HistorialEntry[];
+  cosechas: CosechaRecord[];
   nextId: number;
 }

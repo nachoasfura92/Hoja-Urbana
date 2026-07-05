@@ -8,12 +8,14 @@ import { Label } from '@/components/ui/label';
 import { DatePicker } from '@/components/dashboard/date-picker';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
+import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { cosechar } from '@/lib/greenhouse/actions';
 import { fracTubosStr, hoy } from '@/lib/greenhouse/helpers';
 
 export function CosecharModal() {
   const { state, update } = useGreenhouse();
   const { cosecharId, closeCosechar } = useModals();
+  const { displayName, email } = useCurrentUser();
   const lote = cosecharId != null ? state.lotes.find((l) => l.id === cosecharId) : null;
 
   const [plantas, setPlantas] = useState(0);
@@ -37,7 +39,13 @@ export function CosecharModal() {
 
   function handleConfirmar() {
     update((draft) =>
-      cosechar(draft, { loteId: lote!.id, plantas, fecha: fecha || hoy(), nota })
+      cosechar(draft, {
+        loteId: lote!.id,
+        plantas,
+        fecha: fecha || hoy(),
+        nota,
+        autor: displayName || email || undefined,
+      })
     );
     closeCosechar();
   }
