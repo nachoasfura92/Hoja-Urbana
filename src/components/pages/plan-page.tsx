@@ -1,0 +1,169 @@
+'use client';
+
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useGreenhouse } from '@/lib/greenhouse/context';
+import { addPlanItem, deletePlanItem } from '@/lib/greenhouse/actions';
+import { dd, fd, gv, planVence } from '@/lib/greenhouse/helpers';
+
+const FRECUENCIAS = [
+  { value: '1', label: 'Todos los días' },
+  { value: '2', label: 'Día por medio' },
+  { value: '3', label: 'Cada 3 días' },
+  { value: '4', label: 'Cada 4 días' },
+  { value: '5', label: 'Cada 5 días' },
+  { value: '7', label: 'Cada semana' },
+  { value: '10', label: 'Cada 10 días' },
+  { value: '14', label: 'Cada 2 semanas' },
+  { value: '21', label: 'Cada 3 semanas' },
+  { value: '30', label: 'Mensual' },
+];
+
+export function PlanPage() {
+  const { state, update } = useGreenhouse();
+  const [vId, setVId] = useState('');
+  const [freq, setFreq] = useState('7');
+  const [plantas, setPlantas] = useState(20);
+  const [dp, setDp] = useState(14);
+  const [de, setDe] = useState(21);
+  const [da, setDa] = useState(21);
+
+  function handleAgregar() {
+    const vIdNum = vId ? parseInt(vId, 10) : null;
+    if (!vIdNum) {
+      alert('Selecciona variedad');
+      return;
+    }
+    const variedad = gv(state.vars, vIdNum);
+    update((draft) =>
+      addPlanItem(draft, {
+        varId: vIdNum,
+        varNom: variedad.nombre,
+        freq: parseInt(freq, 10),
+        plantas: plantas || 20,
+        dp: dp || 14,
+        de: de || 21,
+        da: da || 21,
+      })
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
+            <Plus className="size-4 text-muted-foreground" />
+            Agregar al plan
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <div className="grid gap-1.5">
+            <Label>Variedad</Label>
+            <Select value={vId} onValueChange={(v) => setVId(v ?? '')}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Seleccionar..." />
+              </SelectTrigger>
+              <SelectContent>
+                {(state.vars || []).map((v) => (
+                  <SelectItem key={v.id} value={String(v.id)}>
+                    {v.nombre}
+                    {v.marca ? ` — ${v.marca}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Frecuencia</Label>
+            <Select value={freq} onValueChange={(v) => setFreq(v ?? '7')}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FRECUENCIAS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Plantas a sembrar</Label>
+            <Input type="number" min={1} value={plantas} onChange={(e) => setPlantas(parseInt(e.target.value, 10) || 0)} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="grid gap-1.5">
+              <Label>Días plantines</Label>
+              <Input type="number" min={1} value={dp} onChange={(e) => setDp(parseInt(e.target.value, 10) || 1)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Días engorda</Label>
+              <Input type="number" min={1} value={de} onChange={(e) => setDe(parseInt(e.target.value, 10) || 1)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Días adulto</Label>
+              <Input type="number" min={1} value={da} onChange={(e) => setDa(parseInt(e.target.value, 10) || 1)} />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handleAgregar}>Agregar</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-2">
+        {(state.plan || []).length ? (
+          state.plan.map((p) => {
+            const vence = planVence(p);
+            const diasSig = p.ultimaSiembra ? Math.max(0, p.freq - dd(p.ultimaSiembra)) : 0;
+            return (
+              <Card key={p.id} className="py-0">
+                <CardContent className="flex items-center justify-between gap-2 px-3.5 py-2.5">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                      {p.varNom}
+                      <Badge
+                        variant="outline"
+                        className={
+                          vence
+                            ? 'border-transparent bg-warning/10 text-warning'
+                            : 'border-transparent bg-success/10 text-success'
+                        }
+                      >
+                        {vence ? 'Sembrar ya' : diasSig <= 1 ? 'Mañana' : `en ${diasSig} días`}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Cada {p.freq === 1 ? 'día' : `${p.freq} días`} · {p.plantas} plantas ·{' '}
+                      {p.ultimaSiembra ? `Última: ${fd(p.ultimaSiembra)}` : 'Sin siembra'}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Pauta: {p.dp}d + {p.de}d + {p.da}d = {p.dp + p.de + p.da} días
+                    </div>
+                  </div>
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-destructive"
+                    onClick={() => update((draft) => deletePlanItem(draft, p.id))}
+                  >
+                    Eliminar
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })
+        ) : (
+          <p className="text-sm text-muted-foreground">Sin plan definido.</p>
+        )}
+      </div>
+    </div>
+  );
+}

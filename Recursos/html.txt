@@ -1,0 +1,939 @@
+bash
+
+cat > /home/claude/hoja-urbana/public/index.html << 'HTMLEOF'
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hoja Urbana — Invernadero</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --surface-0:#f8f9fa;--surface-1:#ffffff;--surface-2:#ffffff;
+  --border:#e5e7eb;--border-strong:#d1d5db;--border-stronger:#9ca3af;
+  --text-primary:#111827;--text-secondary:#6b7280;--text-muted:#9ca3af;
+  --text-success:#15803d;--text-warning:#92400e;--text-danger:#b91c1c;--text-accent:#1d4ed8;
+  --fill-accent:#2563eb;--fill-success:#16a34a;--fill-warning:#d97706;--fill-danger:#dc2626;
+  --bg-success:#f0fdf4;--bg-warning:#fffbeb;--bg-accent:#eff6ff;
+  --border-success:#86efac;--border-warning:#fcd34d;--border-accent:#93c5fd;--border-danger:#fca5a5;
+  --radius:6px;--font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+body{font-family:var(--font-sans);background:var(--surface-0);color:var(--text-primary);font-size:13px}
+
+/* SYNC STATUS */
+#sync-status{position:fixed;bottom:12px;right:12px;font-size:11px;padding:4px 10px;border-radius:99px;z-index:200;transition:all .3s}
+#sync-status.ok{background:#E1F5EE;color:#085041}
+#sync-status.saving{background:#FFFBEB;color:#92400e}
+#sync-status.error{background:#FEE2E2;color:#991B1B}
+#sync-status.hidden{opacity:0;pointer-events:none}
+
+.shell{display:grid;grid-template-columns:200px 1fr;min-height:100vh}
+.sidebar{background:#1A3D1F;padding:14px 0;display:flex;flex-direction:column;gap:1px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.logo-wrap{padding:0 14px 14px;border-bottom:1px solid #2d5c34;margin-bottom:8px;display:flex;align-items:center;justify-content:center}
+.logo-img{max-width:140px;filter:brightness(0) invert(1);opacity:.92}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:11px;color:#a8cba9;cursor:pointer;border-left:2px solid transparent;transition:background .1s}
+.ni:hover{background:#2d5c34;color:#fff}
+.ni.active{background:#2d5c34;color:#c6e8c7;border-left-color:#7DC87E}
+.ni i{font-size:13px;width:15px;text-align:center}
+.ns{font-size:9px;font-weight:600;color:#5a8a5e;text-transform:uppercase;letter-spacing:.07em;padding:10px 14px 3px}
+.main{display:flex;flex-direction:column;overflow:hidden}
+.topbar{padding:10px 18px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface-2);position:sticky;top:0;z-index:10}
+.tb-title{font-size:13px;font-weight:500}.tb-date{font-size:10px;color:var(--text-muted)}
+.pill{font-size:10px;font-weight:500;padding:2px 7px;border-radius:99px;display:inline-flex;align-items:center;gap:3px}
+.pill-w{background:var(--bg-warning);color:var(--text-warning)}
+.pill-g{background:var(--bg-success);color:var(--text-success)}
+.content{padding:14px 18px;flex:1;overflow-y:auto}
+.page{display:none}.page.active{display:block}
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:9px}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.ct{font-size:12px;font-weight:500;display:flex;align-items:center;gap:5px}
+.ct i{font-size:13px;color:var(--text-muted)}
+.mc{background:var(--surface-1);border-radius:var(--radius);padding:8px 10px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px}
+.lbl{font-size:10px;color:var(--text-muted);margin-bottom:2px}
+.val{font-size:20px;font-weight:500}.vsm{font-size:13px;font-weight:500}
+.stat{background:var(--surface-2);border:0.5px solid var(--border);border-radius:9px;padding:10px 12px}
+.stat.ac{border-left:2px solid #2A7D2E}.stat.su{border-left:2px solid var(--fill-success)}
+.stat.wa{border-left:2px solid var(--fill-warning)}.stat.da{border-left:2px solid var(--fill-danger)}
+.badge{display:inline-flex;align-items:center;font-size:9px;font-weight:500;padding:2px 6px;border-radius:99px}
+.b-p{background:#E6F1FB;color:#0C447C}.b-e{background:#FAEEDA;color:#633806}
+.b-a{background:#E1F5EE;color:#085041}.b-ok{background:var(--bg-success);color:var(--text-success)}
+.b-wa{background:var(--bg-warning);color:var(--text-warning)}.b-r{background:#FEE2E2;color:#991B1B}
+label{font-size:11px;color:var(--text-secondary);display:block;margin:7px 0 2px}
+input,select,textarea{width:100%;padding:6px 8px;border:0.5px solid var(--border-strong);border-radius:var(--radius);font-size:11px;background:var(--surface-1);color:var(--text-primary);font-family:inherit}
+input:focus,select:focus{outline:none;border-color:#2A7D2E}
+.btn{padding:5px 11px;border-radius:var(--radius);border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-primary);font-size:11px;cursor:pointer;font-family:inherit}
+.btn-p{background:#2A7D2E;color:#fff;border-color:#2A7D2E}.btn-p:hover{background:#1e5c21}
+.btn-d{color:var(--text-danger);border-color:var(--border-danger);background:transparent;font-size:11px;padding:3px 7px}
+.al{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;border-radius:6px;margin-bottom:5px;font-size:11px}
+.al.w{background:var(--bg-warning);color:var(--text-warning)}
+.al.g{background:var(--bg-success);color:var(--text-success)}
+.al.b{background:var(--bg-accent);color:var(--text-accent)}
+.al.r{background:#FEF2F2;border:0.5px solid #FECACA;color:#991B1B}
+.al i{font-size:12px;margin-top:1px;flex-shrink:0}
+.sep{border:none;border-top:0.5px solid var(--border);margin:10px 0}
+.sl{font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:9px 0 5px}
+.pb{height:4px;border-radius:99px;background:var(--surface-0);margin-top:4px;overflow:hidden}
+.pf{height:100%;border-radius:99px}
+.row{border:0.5px solid var(--border);border-radius:var(--radius);padding:7px 9px;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap}
+.rm{font-size:12px;font-weight:500}.rs{font-size:10px;color:var(--text-secondary);margin-top:1px}
+.vg{border:0.5px solid var(--border);border-radius:8px;margin-bottom:7px;overflow:hidden}
+.vgh{display:flex;align-items:center;justify-content:space-between;padding:8px 11px;background:var(--surface-1);cursor:pointer;user-select:none}
+.vgh:hover{background:var(--surface-0)}
+.vgn{font-size:12px;font-weight:500;display:flex;align-items:center;gap:7px}
+.vgm{font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:9px}
+.vgb{padding:9px 11px;display:none;background:var(--surface-2)}
+.vgb.open{display:block}
+.lc{background:var(--surface-1);border:0.5px solid var(--border);border-radius:6px;padding:7px 9px;margin-bottom:5px}
+.lc:last-child{margin-bottom:0}
+.lch{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.cdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.chev{font-size:11px;color:var(--text-muted);transition:transform .2s}
+.chev.open{transform:rotate(180deg)}
+.bg{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:7px}
+.bc{border:0.5px solid var(--border);border-radius:5px;padding:4px 3px;text-align:center;cursor:pointer}
+.bc:hover{border-color:#2A7D2E}
+.bc.eng{background:#FAEEDA22;border-color:#BA7517}
+.bc.adu{background:#E1F5EE22;border-color:#0F6E56}
+.bn{font-size:8px;color:var(--text-muted)}
+.bv{font-size:8px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt{font-size:8px;color:var(--text-secondary)}
+.sp{border:0.5px solid var(--border-warning);border-radius:8px;padding:11px;background:var(--bg-warning);margin-bottom:9px}
+.sp.man{border-color:var(--border-accent);background:var(--bg-accent)}
+.sph{font-size:11px;font-weight:500;color:var(--text-warning);margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.sp.man .sph{color:var(--text-accent)}
+.si{background:var(--surface-2);border-radius:6px;padding:8px 10px;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.si:last-child{margin-bottom:0}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface-2);border:0.5px solid var(--border-strong);border-radius:13px;padding:15px;width:380px;max-width:96vw;max-height:88vh;overflow-y:auto}
+.mt{font-size:13px;font-weight:500;margin-bottom:10px}
+.fe{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}
+.chart-wrap{position:relative;height:220px;margin-bottom:9px}
+.fb{display:flex;gap:4px;margin-bottom:7px;flex-wrap:wrap;align-items:center}
+.fb button{padding:3px 9px;border-radius:99px;font-size:10px;border:0.5px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;font-family:inherit}
+.fb button.on{background:#2A7D2E;color:#fff;border-color:#2A7D2E}
+.vtb{padding:3px 8px;border-radius:99px;font-size:10px;border:0.5px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;font-family:inherit}
+.vtb.on{background:var(--surface-1);border-color:var(--border-strong);color:var(--text-primary);font-weight:500}
+.vt-ml{margin-left:auto;display:flex;gap:3px}
+.hdr{display:grid;gap:7px;font-size:10px;font-weight:500;color:var(--text-muted);padding:4px 0;border-bottom:0.5px solid var(--border);margin-bottom:4px}
+.dr{display:grid;gap:7px;font-size:11px;padding:5px 0;border-bottom:0.5px solid var(--border);align-items:center}
+.dr:last-child{border-bottom:none}
+.pr{border:0.5px solid var(--border);border-radius:6px;padding:7px 10px;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between}
+.ir{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:11px}
+.ir:last-child{border-bottom:none}
+@media(max-width:700px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{height:auto;position:relative;flex-direction:row;flex-wrap:wrap;padding:8px}
+  .ns{display:none}
+  .ni{padding:5px 8px;font-size:10px}
+  .logo-wrap{padding:8px;border-bottom:none;margin-bottom:0}
+  .logo-img{max-width:80px}
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .bg{grid-template-columns:repeat(4,1fr)}
+}
+</style>
+</head>
+<body>
+<div id="sync-status" class="hidden">✓ Guardado</div>
+
+<div class="shell">
+<div class="sidebar">
+  <div class="logo-wrap">
+    <img class="logo-img" src="/logo.png" alt="Hoja Urbana">
+  </div>
+  <div class="ns">General</div>
+  <div class="ni active" onclick="T('resumen',this)"><i class="ti ti-layout-dashboard"></i>Resumen</div>
+  <div class="ns">Operación</div>
+  <div class="ni" onclick="T('registrar',this)"><i class="ti ti-clipboard-list"></i>Registrar siembra</div>
+  <div class="ni" onclick="T('mesa',this)"><i class="ti ti-plant-2"></i>Mesa plantines</div>
+  <div class="ni" onclick="T('bancales',this)"><i class="ti ti-grid-dots"></i>Bancales</div>
+  <div class="ns">Administración</div>
+  <div class="ni" onclick="T('venta',this)"><i class="ti ti-chart-area"></i>Calendario venta</div>
+  <div class="ni" onclick="T('plan',this)"><i class="ti ti-route"></i>Plan siembra</div>
+  <div class="ni" onclick="T('inventario',this)"><i class="ti ti-package"></i>Inventario</div>
+  <div class="ni" onclick="T('variedades',this)"><i class="ti ti-seedling"></i>Variedades</div>
+  <div class="ni" onclick="T('historial',this)"><i class="ti ti-history"></i>Historial</div>
+</div>
+
+<div class="main">
+<div class="topbar">
+  <div><div class="tb-title" id="ptitle">Resumen</div><div class="tb-date" id="pdate"></div></div>
+  <div style="display:flex;gap:5px" id="top-pills"></div>
+</div>
+<div class="content">
+
+<div class="page active" id="page-resumen">
+  <div class="g4" id="r-stats"></div>
+  <div class="sl">Merma acumulada (plantas)</div>
+  <div class="g3" id="r-merma" style="margin-bottom:12px"></div>
+  <div id="r-alertas"></div>
+  <div class="sl">Próximas cosechas</div>
+  <div id="r-prox"></div>
+</div>
+
+<div class="page" id="page-registrar">
+  <div class="sl">Siembras programadas — hoy y mañana</div>
+  <div id="reg-hoy-panel"></div>
+  <div class="sep"></div>
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-plus"></i>Registrar siembra manual</div></div>
+    <label>Variedad</label><select id="rv" onchange="updAlerta()"></select>
+    <label>Fecha de siembra</label><input type="date" id="rfecha">
+    <label>Cantidad de plantas</label><input type="number" id="rc" value="20" min="1" oninput="updAlerta()">
+    <div id="reg-alerta-plan"></div>
+    <div id="reg-cubos-info" style="font-size:10px;color:var(--text-muted);margin-top:4px"></div>
+    <div class="g3" style="margin-top:6px">
+      <div><label>Días plantines</label><input type="number" id="rdp" value="14" min="1"></div>
+      <div><label>Días engorda</label><input type="number" id="rde" value="21" min="1"></div>
+      <div><label>Días adulto</label><input type="number" id="rda" value="21" min="1"></div>
+    </div>
+    <label>Notas</label><textarea id="rn" rows="2" placeholder="Observaciones..."></textarea>
+    <div class="fe"><button class="btn btn-p" onclick="regSiembra()">Registrar siembra</button></div>
+  </div>
+</div>
+
+<div class="page" id="page-mesa">
+  <div style="font-size:11px;color:var(--text-secondary);margin-bottom:9px">Agrupado por variedad. Clic en encabezado para expandir.</div>
+  <div id="mesa-grupos"></div>
+  <p id="mesa-empty" style="font-size:11px;color:var(--text-muted);display:none">Sin lotes en mesa.</p>
+</div>
+
+<div class="page" id="page-bancales">
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-grid-dots"></i>Engorda — 8 bancales × 20 tubos</div></div>
+    <div class="bg" id="g-eng"></div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-grid-dots"></i>Adulto — 16 bancales × 10 tubos</div></div>
+    <div class="bg" id="g-adu"></div>
+  </div>
+</div>
+
+<div class="page" id="page-venta">
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-chart-bar"></i>Plantas disponibles en el tiempo</div></div>
+    <div class="fb">
+      <button class="on" onclick="setF('todas',this)">Todas</button>
+      <div class="vt-ml">
+        <button class="vtb on" onclick="setV('ambos',this)">Real + Proy.</button>
+        <button class="vtb" onclick="setV('real',this)">Solo real</button>
+        <button class="vtb" onclick="setV('proy',this)">Solo proyectado</button>
+      </div>
+    </div>
+    <div id="venta-var-filters" style="display:flex;gap:4px;margin-bottom:7px;flex-wrap:wrap"></div>
+    <div class="chart-wrap"><canvas id="chartV"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-list"></i>Detalle</div></div>
+    <div class="hdr" style="grid-template-columns:70px 1fr 65px 60px 65px"><span>Fecha</span><span>Variedad</span><span>Tipo</span><span>Etapa</span><span style="text-align:right">Plantas</span></div>
+    <div id="vrows"></div>
+  </div>
+</div>
+
+<div class="page" id="page-plan">
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-plus"></i>Agregar al plan</div></div>
+    <label>Variedad</label><select id="pv"></select>
+    <label>Frecuencia</label>
+    <select id="pf">
+      <option value="1">Todos los días</option><option value="2">Día por medio</option>
+      <option value="3">Cada 3 días</option><option value="4">Cada 4 días</option>
+      <option value="5">Cada 5 días</option><option value="7" selected>Cada semana</option>
+      <option value="10">Cada 10 días</option><option value="14">Cada 2 semanas</option>
+      <option value="21">Cada 3 semanas</option><option value="30">Mensual</option>
+    </select>
+    <label>Plantas a sembrar</label><input type="number" id="pc" value="20" min="1">
+    <div class="g3">
+      <div><label>Días plantines</label><input type="number" id="pdp" value="14" min="1"></div>
+      <div><label>Días engorda</label><input type="number" id="pde" value="21" min="1"></div>
+      <div><label>Días adulto</label><input type="number" id="pda" value="21" min="1"></div>
+    </div>
+    <div class="fe"><button class="btn btn-p" onclick="addPlan()">Agregar</button></div>
+  </div>
+  <div id="plan-list"></div>
+</div>
+
+<div class="page" id="page-inventario">
+  <div class="g2">
+    <div class="card">
+      <div class="ch"><div class="ct"><i class="ti ti-box"></i>Cubos fenológicos</div></div>
+      <div style="font-size:24px;font-weight:500;margin-bottom:2px" id="inv-cubos-val">0</div>
+      <div style="font-size:10px;color:var(--text-secondary);margin-bottom:8px">en stock</div>
+      <label>Cantidad</label>
+      <div style="display:flex;gap:5px"><input type="number" id="ic" placeholder="0" style="flex:1">
+        <button class="btn" onclick="adjC(1)">+</button><button class="btn" onclick="adjC(-1)">−</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct"><i class="ti ti-seed"></i>Semillas</div></div>
+      <div id="inv-sem"></div>
+      <div class="sep"></div>
+      <label>Variedad</label><select id="iv"></select>
+      <label>Cantidad</label><input type="number" id="iq" placeholder="Nº semillas">
+      <div class="fe"><button class="btn" onclick="adjS(-1)">− Descontar</button><button class="btn btn-p" onclick="adjS(1)">+ Añadir</button></div>
+    </div>
+  </div>
+  <div class="sl">Proyección de agotamiento</div>
+  <div id="inv-proy"></div>
+</div>
+
+<div class="page" id="page-variedades">
+  <div class="card">
+    <div class="ch"><div class="ct"><i class="ti ti-plus"></i>Nueva variedad</div></div>
+    <div class="g3">
+      <div><label>Nombre</label><input type="text" id="vn" placeholder="Española"></div>
+      <div><label>Marca</label><input type="text" id="vm" placeholder="Hazera"></div>
+      <div><label>Tipo</label><input type="text" id="vt" placeholder="Verde"></div>
+    </div>
+    <div class="fe"><button class="btn btn-p" onclick="addVar()">Agregar</button></div>
+  </div>
+  <div id="var-list"></div>
+</div>
+
+<div class="page" id="page-historial">
+  <div class="card">
+    <div class="hdr" style="grid-template-columns:68px 85px 1fr"><span>Fecha</span><span>Acción</span><span>Detalle</span></div>
+    <div id="hist-list"></div>
+  </div>
+</div>
+
+</div></div></div>
+
+<!-- MODALES -->
+<div class="modal-bg" id="modal-lote"><div class="modal">
+  <div class="mt" id="ml-t">Lote</div><div id="ml-b"></div><div class="fe" id="ml-f"></div>
+</div></div>
+<div class="modal-bg" id="modal-mov"><div class="modal">
+  <div class="mt" id="mm-t">Mover</div><div id="mm-b"></div>
+  <div class="fe"><button class="btn" onclick="cm('modal-mov')">Cancelar</button><button class="btn btn-p" onclick="confMov()">Confirmar</button></div>
+</div></div>
+<div class="modal-bg" id="modal-merma"><div class="modal">
+  <div class="mt">¿Qué pasó con las plantas restantes?</div><div id="mmerma-b"></div>
+  <div class="fe">
+    <button class="btn btn-d" onclick="resMerma('merma')">Son merma</button>
+    <button class="btn btn-p" onclick="resMerma('pendiente')">Quedan pendientes</button>
+  </div>
+</div></div>
+<div class="modal-bg" id="modal-banc"><div class="modal">
+  <div class="mt" id="mb-t">Bancal</div><div id="mb-b"></div>
+  <div class="fe" id="mb-f"><button class="btn" onclick="cm('modal-banc')">Cerrar</button></div>
+</div></div>
+<div class="modal-bg" id="modal-cos"><div class="modal">
+  <div class="mt" id="mc-t">Cosechar</div><div id="mc-b"></div>
+  <div class="fe"><button class="btn" onclick="cm('modal-cos')">Cancelar</button><button class="btn btn-p" onclick="confCos()">Cosechar</button></div>
+</div></div>
+<div class="modal-bg" id="modal-val"><div class="modal">
+  <div class="mt">Validar siembra</div><div id="mv-b"></div>
+  <div class="fe">
+    <button class="btn" onclick="cm('modal-val')">Cancelar</button>
+    <button class="btn btn-p" id="mv-confirm" onclick="confirmarSiembra()">Confirmar siembra</button>
+  </div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── SINCRONIZACIÓN CON SERVIDOR ──────────────────────────────────────────────
+let S = null;
+let saveTimer = null;
+let savePending = false;
+
+function showSync(status, msg) {
+  const el = document.getElementById('sync-status');
+  el.className = status;
+  el.textContent = msg;
+  if (status === 'ok') setTimeout(() => el.classList.add('hidden'), 2000);
+}
+
+async function cargarDesdeServidor() {
+  try {
+    const res = await fetch('/api/state');
+    const data = await res.json();
+    if (data.ok && data.state) {
+      S = data.state;
+      showSync('ok', '✓ Datos cargados');
+    } else {
+      S = defS();
+    }
+  } catch (e) {
+    console.warn('Sin conexión al servidor, usando localStorage');
+    const local = localStorage.getItem('inv_v9');
+    S = local ? JSON.parse(local) : defS();
+  }
+  render();
+}
+
+async function guardarEnServidor() {
+  savePending = false;
+  showSync('saving', '⏳ Guardando...');
+  try {
+    localStorage.setItem('inv_v9', JSON.stringify(S)); // backup local
+    const res = await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: S })
+    });
+    const data = await res.json();
+    if (data.ok) showSync('ok', '✓ Guardado en Sheets');
+    else showSync('error', '⚠ Error al guardar');
+  } catch (e) {
+    showSync('error', '⚠ Sin conexión — guardado local');
+  }
+}
+
+async function save() {
+  localStorage.setItem('inv_v9', JSON.stringify(S));
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(guardarEnServidor, 1500); // debounce 1.5s
+}
+
+// ── CONSTANTES Y HELPERS ─────────────────────────────────────────────────────
+const PT = 30;
+const COLORS_VAR = ['#2A7D2E','#1D6FA4','#BA7517','#8B5CF6','#EC4899','#EF4444','#14B8A6'];
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MESES_L = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIAS_L = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+let chartV = null, filtroV = 'todas', vistaV = 'ambos';
+let movCtx = null, cosCtx = null, siembraCtx = null;
+
+function defS() {
+  return {
+    vars: [{id:1,nombre:'Española',marca:'Hazera',tipo:'Verde'},{id:2,nombre:'Lolo Bionda',marca:'Rijk Zwaan',tipo:'Bionda'},{id:3,nombre:'Hoja Roble',marca:'Clause',tipo:'Verde'}],
+    lotes: [], bancales: {}, plan: [], inventario: {cubos:500,semillas:{}},
+    merma: {plantines:0,engorda:0,adulto:0}, historial: [], nextId: 1
+  };
+}
+
+function hoy() { return new Date().toISOString().split('T')[0]; }
+function man() { return fmas(hoy(), 1); }
+function fmas(iso, n) { const d = new Date(iso); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; }
+function fd(iso) { if (!iso) return '—'; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
+function dd(iso) { return Math.floor((new Date() - new Date(iso)) / 86400000); }
+function dr(f) { return Math.ceil((new Date(f) - new Date()) / 86400000); }
+function gv(id) { return (S.vars||[]).find(v=>v.id===id) || {nombre:'?',marca:'',tipo:''}; }
+function gvColor(id) { const i = (S.vars||[]).findIndex(v=>v.id===id); return COLORS_VAR[i%COLORS_VAR.length]; }
+function fracTubosStr(p) { const t = p/PT; return t === Math.floor(t) ? t.toString() : (Math.round(t*100)/100).toString(); }
+function log(a, d) { if (!S.historial) S.historial=[]; S.historial.unshift({fecha:hoy(),accion:a,detalle:d}); if (S.historial.length>400) S.historial.length=400; }
+function cm(id) { document.getElementById(id).classList.remove('open'); }
+function el(id) { return document.getElementById(id); }
+
+const TABS = ['resumen','registrar','mesa','bancales','venta','plan','inventario','variedades','historial'];
+const TITLES = {resumen:'Resumen del invernadero',registrar:'Registrar siembra',mesa:'Mesa de plantines',bancales:'Bancales',venta:'Calendario de venta',plan:'Plan de siembra',inventario:'Inventario',variedades:'Variedades',historial:'Historial'};
+
+function T(t, navEl) {
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  navEl.classList.add('active');
+  el('page-'+t).classList.add('active');
+  el('ptitle').textContent = TITLES[t];
+  if (t==='venta') setTimeout(()=>{buildVentaChart();buildVentaRows();}, 60);
+  render();
+}
+
+// Bancales usan plantas (no tubos) para soportar fracciones
+function getBanc(k) { if (!S.bancales) S.bancales={}; if (!S.bancales[k]) S.bancales[k]=[]; return S.bancales[k]; }
+function plantasEnBanc(k) { return getBanc(k).reduce((a,s)=>a+s.plantas, 0); }
+function maxPlantas(k) { return k.startsWith('eng') ? 20*PT : 10*PT; }
+function addSlot(k,vId,vNom,p) { const b=getBanc(k); const e=b.find(s=>s.varId===vId); if(e) e.plantas+=p; else b.push({varId:vId,varNom:vNom,plantas:p}); }
+function remSlot(k,vId,p) { const b=getBanc(k); const e=b.find(s=>s.varId===vId); if(e){e.plantas=Math.max(0,e.plantas-p); if(e.plantas===0) S.bancales[k]=b.filter(s=>s.varId!==vId);} }
+
+function sembradoEn(vId, f) { return (S.lotes||[]).filter(l=>l.varId===vId&&l.fechaInicio===f).reduce((t,l)=>t+l.plantas,0); }
+function planHoy(vId) { const p=(S.plan||[]).find(x=>x.varId===vId); if(!p) return null; return (!p.ultimaSiembra||dd(p.ultimaSiembra)>=p.freq)?p:null; }
+
+function addVar() {
+  const n=el('vn').value.trim(); if(!n){alert('Nombre requerido');return;}
+  S.vars.push({id:Date.now(),nombre:n,marca:el('vm').value.trim(),tipo:el('vt').value.trim()});
+  log('Nueva variedad',n); save(); render(); ['vn','vm','vt'].forEach(i=>el(i).value='');
+}
+function delVar(id) { const v=gv(id); if(!confirm(`Eliminar "${v.nombre}"?`))return; S.vars=S.vars.filter(x=>x.id!==id); save(); render(); }
+
+function addPlan() {
+  const vId=parseInt(el('pv').value); if(!vId){alert('Selecciona variedad');return;}
+  const v=gv(vId);
+  S.plan.push({id:Date.now(),varId:vId,varNom:v.nombre,freq:parseInt(el('pf').value),
+    plantas:parseInt(el('pc').value)||20,dp:parseInt(el('pdp').value)||14,
+    de:parseInt(el('pde').value)||21,da:parseInt(el('pda').value)||21,ultimaSiembra:null});
+  log('Plan',`${v.nombre} cada ${el('pf').value}d`); save(); render();
+}
+function delPlan(id) { S.plan=S.plan.filter(x=>x.id!==id); save(); render(); }
+
+function adjC(dir) { const n=parseInt(el('ic').value)||0; if(!n)return; S.inventario.cubos=Math.max(0,(S.inventario.cubos||0)+dir*n); log('Cubos',`${dir>0?'+':'-'}${n}`); save(); render(); el('ic').value=''; }
+function adjS(dir) {
+  const vId=parseInt(el('iv').value),n=parseInt(el('iq').value)||0; if(!vId||!n)return;
+  const v=gv(vId); if(!S.inventario.semillas) S.inventario.semillas={};
+  S.inventario.semillas[vId]=Math.max(0,(S.inventario.semillas[vId]||0)+dir*n);
+  log('Semillas',`${v.nombre} ${dir>0?'+':'-'}${n}`); save(); render(); el('iq').value='';
+}
+
+function updAlerta() {
+  const vId=parseInt(el('rv').value), plantas=parseInt(el('rc').value)||0;
+  const alertaEl=el('reg-alerta-plan'), infoEl=el('reg-cubos-info');
+  if (plantas>0&&infoEl) infoEl.textContent=`${plantas} cubos necesarios · ${fracTubosStr(plantas)} tubos equivalentes`;
+  else if(infoEl) infoEl.textContent='';
+  if (!vId||!alertaEl) return;
+  const plan=planHoy(vId);
+  if (plan&&plantas>0) {
+    const ya=sembradoEn(vId,hoy()); const total=ya+plantas;
+    if (total<plan.plantas) alertaEl.innerHTML=`<div class="al w" style="margin-top:5px"><i class="ti ti-alert-triangle"></i>Quedarán ${plan.plantas-total} plantas sin sembrar del plan de hoy.</div>`;
+    else if (total>plan.plantas) alertaEl.innerHTML=`<div class="al r" style="margin-top:5px"><i class="ti ti-alert-triangle"></i>${total-plan.plantas} plantas por encima del plan (${plan.plantas} total).</div>`;
+    else alertaEl.innerHTML=`<div class="al g" style="margin-top:5px"><i class="ti ti-check"></i>Completa exactamente el plan de hoy ✓</div>`;
+  } else alertaEl.innerHTML='';
+}
+
+function regSiembra() {
+  const vId=parseInt(el('rv').value), plantas=parseInt(el('rc').value)||0;
+  if (!vId||!plantas) {alert('Completa variedad y cantidad');return;}
+  const v=gv(vId);
+  const sem=((S.inventario.semillas||{})[vId])||0, cub=S.inventario.cubos||0;
+  const plan=planHoy(vId); const ya=sembradoEn(vId,hoy()); const total=ya+plantas;
+  const fechaSiembra=el('rfecha').value||hoy();
+  let html=`<div class="mc" style="margin-bottom:9px">
+    <div style="font-size:12px;font-weight:500;margin-bottom:6px">Resumen</div>
+    <div class="dr" style="grid-template-columns:1fr auto"><span>Variedad</span><strong>${v.nombre}</strong></div>
+    <div class="dr" style="grid-template-columns:1fr auto"><span>Fecha de siembra</span><strong>${fd(fechaSiembra)}</strong></div>
+    <div class="dr" style="grid-template-columns:1fr auto"><span>Plantas</span><strong>${plantas}</strong></div>
+    <div class="dr" style="grid-template-columns:1fr auto"><span>Cubos necesarios</span><strong>${plantas} cubos</strong></div>
+    <div class="dr" style="grid-template-columns:1fr auto"><span>Tubos equivalentes</span><strong>${fracTubosStr(plantas)} tubos</strong></div>
+  </div>`;
+  let bloqueante=false;
+  if (sem<plantas){html+=`<div class="al r"><i class="ti ti-alert-triangle"></i>Semillas insuficientes: ${sem} disponibles, necesitas ${plantas}.</div>`;bloqueante=true;}
+  if (cub<plantas){html+=`<div class="al r"><i class="ti ti-alert-triangle"></i>Cubos insuficientes: ${cub} disponibles, necesitas ${plantas}.</div>`;bloqueante=true;}
+  if (plan) {
+    if (total<plan.plantas) html+=`<div class="al w"><i class="ti ti-alert-triangle"></i>Siembra incompleta: quedarán ${plan.plantas-total} plantas sin sembrar.</div>`;
+    if (total>plan.plantas) html+=`<div class="al r"><i class="ti ti-alert-triangle"></i>Excede el plan en ${total-plan.plantas} plantas.</div>`;
+    if (total===plan.plantas) html+=`<div class="al g"><i class="ti ti-check"></i>Completa exactamente el plan de hoy ✓</div>`;
+  } else html+=`<div class="al b"><i class="ti ti-info-circle"></i>No corresponde a ningún plan programado para hoy.</div>`;
+  if (!bloqueante) html+=`<div style="font-size:11px;color:var(--text-muted);margin-top:8px">¿Confirmar y agregar a mesa de plantines?</div>`;
+  el('mv-b').innerHTML=html;
+  el('mv-confirm').style.display=bloqueante?'none':'inline-flex';
+  siembraCtx={vId,plantas,plan,fechaSiembra};
+  el('modal-val').classList.add('open');
+}
+
+function confirmarSiembra() {
+  if (!siembraCtx) return;
+  const {vId,plantas,plan,fechaSiembra}=siembraCtx;
+  const v=gv(vId);
+  const dp=parseInt(el('rdp').value)||14, de=parseInt(el('rde').value)||21, da=parseInt(el('rda').value)||21;
+  const notas=el('rn').value.trim();
+  const lote={id:S.nextId++,varId:vId,varNom:v.nombre,
+    plantas,plantasRestantes:plantas,
+    etapa:'plantines',fechaInicio:fechaSiembra,fechaEtapa:fechaSiembra,dp,de,da,
+    notas,bancalId:null,fechaVenta:fmas(fechaSiembra,dp+de+da),
+    movimientos:[{fecha:fechaSiembra,accion:'Siembra',detalle:`${plantas} plantas (${plantas} cubos · ${fracTubosStr(plantas)} tubos)${notas?' — '+notas:''}`}]};
+  S.lotes.push(lote);
+  if (!S.inventario.semillas) S.inventario.semillas={};
+  S.inventario.semillas[vId]=Math.max(0,(S.inventario.semillas[vId]||0)-plantas);
+  S.inventario.cubos=Math.max(0,(S.inventario.cubos||0)-plantas);
+  if (plan) plan.ultimaSiembra=hoy();
+  log('Siembra',`${plantas} plantas (${plantas} cubos · ${fracTubosStr(plantas)} tubos) de ${v.nombre} — ${fd(fechaSiembra)}`);
+  save(); cm('modal-val'); el('rn').value=''; render();
+}
+
+function abrirLote(id) {
+  const l=S.lotes.find(x=>x.id===id); if(!l) return;
+  const dias=dd(l.fechaEtapa);
+  const dObj=l.etapa==='plantines'?l.dp:l.etapa==='engorda'?l.de:l.da;
+  const pct=Math.min(100,Math.round((dias/dObj)*100));
+  const sig={plantines:'engorda',engorda:'adulto',adulto:'cosechado'}[l.etapa];
+  el('ml-t').textContent=`${l.varNom} — ${l.etapa}`;
+  let h=`<div class="g3" style="margin-bottom:8px">
+    <div class="mc"><div class="lbl">Plantas</div><div class="vsm">${l.plantasRestantes}</div></div>
+    <div class="mc"><div class="lbl">Cubos</div><div class="vsm">${l.plantasRestantes}</div></div>
+    <div class="mc"><div class="lbl">Tubos equiv.</div><div class="vsm">${fracTubosStr(l.plantasRestantes)}</div></div>
+  </div>
+  <div class="mc" style="margin-bottom:8px">
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Día en etapa: ${dias}/${dObj}</div>
+    <div class="pb"><div class="pf" style="width:${pct}%;background:${pct>=100?'var(--fill-success)':'#2A7D2E'}"></div></div>
+  </div>
+  <div style="font-size:10px;color:var(--text-secondary)">Cosecha est: ${fd(l.fechaVenta)}${l.bancalId?' · Bancal: '+l.bancalId:''}</div>`;
+  if (l.notas) h+=`<div style="margin-top:7px;padding:7px 9px;background:var(--surface-1);border-radius:6px;border-left:2px solid #2A7D2E">
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">Notas</div>
+    <div style="font-size:12px;color:var(--text-primary)">${l.notas}</div></div>`;
+  h+=`<div class="sl">Historial</div>`;
+  (l.movimientos||[]).forEach(m=>{h+=`<div style="display:flex;gap:6px;padding:4px 0;border-bottom:0.5px solid var(--border);font-size:10px">
+    <span style="min-width:62px;color:var(--text-muted);font-weight:500">${fd(m.fecha)}</span>
+    <span>${m.accion} — ${m.detalle}</span></div>`;});
+  el('ml-b').innerHTML=h;
+  let footer=`<button class="btn btn-d" onclick="delLote(${id})">Eliminar</button><button class="btn" onclick="cm('modal-lote')">Cerrar</button>`;
+  if (sig==='cosechado') footer+=`<button class="btn btn-p" onclick="cm('modal-lote');abrirCos(${id})">Cosechar</button>`;
+  else if (sig) footer+=`<button class="btn btn-p" onclick="cm('modal-lote');abrirMov(${id})">→ ${sig}</button>`;
+  el('ml-f').innerHTML=footer;
+  el('modal-lote').classList.add('open');
+}
+
+function delLote(id) {
+  const l=S.lotes.find(x=>x.id===id);
+  if (!confirm(`¿Eliminar lote de ${l?l.varNom:'?'}?`)) return;
+  if (l&&l.bancalId) remSlot(l.bancalId,l.varId,l.plantasRestantes);
+  S.lotes=S.lotes.filter(x=>x.id!==id);
+  log('Eliminación',`Lote ${l?l.varNom:'?'} eliminado`); save(); cm('modal-lote'); cm('modal-banc'); render();
+}
+
+function abrirMov(id) {
+  movCtx={loteId:id};
+  const l=S.lotes.find(x=>x.id===id); if(!l) return;
+  const sig={plantines:'engorda',engorda:'adulto'}[l.etapa]; if(!sig) return;
+  const tipo=sig==='engorda'?'eng':'adu';
+  const maxBanc=sig==='engorda'?8:16;
+  const maxP=sig==='engorda'?20*PT:10*PT;
+  const obligatorio=l.etapa==='plantines';
+  el('mm-t').textContent=`${l.varNom}: ${l.etapa} → ${sig}`;
+  let h=`<div class="mc" style="margin-bottom:8px;font-size:11px">Plantas disponibles: <strong>${l.plantasRestantes}</strong> (${fracTubosStr(l.plantasRestantes)} tubos)</div>
+  <label>Fecha del movimiento</label><input type="date" id="mov-fecha" value="${hoy()}">
+  <label>Bancal destino ${obligatorio?'<span style="color:var(--text-danger)">* obligatorio</span>':''}</label>
+  <select id="mov-banc" onchange="checkCap()"><option value="">-- Selecciona bancal --</option>`;
+  for (let i=1;i<=maxBanc;i++) {
+    const k=`${tipo}_${i}`; const usP=plantasEnBanc(k); const libP=maxP-usP;
+    const slots=getBanc(k); const sl=slots.length?slots.map(x=>x.varNom+'×'+x.plantas+'pl').join(', '):'vacío';
+    h+=`<option value="${k}" data-libre="${libP}"${libP<=0?' disabled':''}>${sig==='engorda'?'E':'A'}${i} — ${fracTubosStr(libP)} tubos libres (${sl})</option>`;
+  }
+  h+=`</select>
+  ${obligatorio?'<div id="mov-banc-err" style="font-size:10px;color:var(--text-danger);display:none;margin-top:3px">Debes seleccionar un bancal.</div>':''}
+  <label>Plantas a mover (máx. ${l.plantasRestantes})</label>
+  <input type="number" id="mov-plantas" value="${l.plantasRestantes}" min="1" max="${l.plantasRestantes}" oninput="checkCap()">
+  <div id="mov-info" style="font-size:10px;color:var(--text-muted);margin-top:2px">${fracTubosStr(l.plantasRestantes)} tubos equivalentes</div>
+  <div id="mov-cap-al"></div>
+  <label>Notas</label><input type="text" id="mov-nota" placeholder="Ej: adelantado por buen crecimiento">`;
+  el('mm-b').innerHTML=h;
+  el('modal-mov').classList.add('open');
+}
+
+function checkCap() {
+  const sel=el('mov-banc'),ti=el('mov-plantas'); if(!sel||!ti) return;
+  const p=parseInt(ti.value)||0;
+  const inf=el('mov-info'); if(inf) inf.textContent=`= ${fracTubosStr(p)} tubos equivalentes`;
+  const opt=sel.options[sel.selectedIndex];
+  const libreP=opt?parseInt(opt.getAttribute('data-libre')):null;
+  const al=el('mov-cap-al');
+  if (sel.value&&libreP!==null&&p>libreP) al.innerHTML=`<div class="al r" style="margin-top:4px"><i class="ti ti-alert-triangle"></i>Solo ${libreP} plantas caben en ese bancal (${fracTubosStr(libreP)} tubos).</div>`;
+  else al.innerHTML='';
+}
+
+function confMov() {
+  const l=S.lotes.find(x=>x.id===movCtx.loteId); if(!l){cm('modal-mov');return;}
+  const sig={plantines:'engorda',engorda:'adulto'}[l.etapa]; if(!sig) return;
+  const bancKey=el('mov-banc').value;
+  const obligatorio=l.etapa==='plantines';
+  if (obligatorio&&!bancKey) { const e=el('mov-banc-err'); if(e) e.style.display='block'; el('mov-banc').style.borderColor='var(--border-danger)'; return; }
+  const fechaMov=el('mov-fecha').value||hoy();
+  const plantasM=Math.min(parseInt(el('mov-plantas').value)||l.plantasRestantes,l.plantasRestantes);
+  const nota=el('mov-nota').value.trim();
+  if (bancKey) { const maxP=sig==='engorda'?20*PT:10*PT; const libP=maxP-plantasEnBanc(bancKey); if(plantasM>libP){alert(`Solo hay espacio para ${libP} plantas en ese bancal.`);return;} }
+  const restantes=l.plantasRestantes-plantasM;
+  movCtx={...movCtx,sig,fechaMov,bancKey,plantasM,nota,restantes,etapaAnt:l.etapa};
+  cm('modal-mov');
+  if (restantes>0) {
+    el('mmerma-b').innerHTML=`<p style="font-size:12px;margin-bottom:9px">Se moverán <strong>${plantasM} plantas (${fracTubosStr(plantasM)} tubos)</strong>.<br>Quedan <strong>${restantes} plantas (${fracTubosStr(restantes)} tubos)</strong> sin mover.</p>`;
+    el('modal-merma').classList.add('open');
+  } else execMov(null);
+}
+
+function resMerma(tipo) { cm('modal-merma'); execMov(tipo); }
+
+function execMov(mermaRes) {
+  const l=S.lotes.find(x=>x.id===movCtx.loteId); if(!l) return;
+  const {sig,fechaMov,bancKey,plantasM,nota,restantes,etapaAnt}=movCtx;
+  if (bancKey) addSlot(bancKey,l.varId,l.varNom,plantasM);
+  if (!l.movimientos) l.movimientos=[];
+  const bL=bancKey?` → Bancal ${bancKey}`:'';
+  const mT=restantes>0&&mermaRes==='merma'?` | ${restantes} plantas merma`:'';
+  const pT=restantes>0&&mermaRes==='pendiente'?` | ${restantes} plantas pendientes`:'';
+  l.movimientos.push({fecha:fechaMov,accion:`→ ${sig}`,detalle:`${plantasM} plantas (${fracTubosStr(plantasM)} tubos)${bL}${nota?' · '+nota:''}${mT}${pT}`});
+  if (mermaRes==='merma'&&restantes>0) {
+    if (!S.merma) S.merma={plantines:0,engorda:0,adulto:0};
+    S.merma[etapaAnt]=(S.merma[etapaAnt]||0)+restantes;
+    l.movimientos.push({fecha:fechaMov,accion:'Merma',detalle:`${restantes} plantas (${fracTubosStr(restantes)} tubos) en ${etapaAnt}`});
+    log('Merma',`${l.varNom} en ${etapaAnt}: ${restantes} plantas`);
+  }
+  if (mermaRes==='pendiente'&&restantes>0) {
+    const nl={...l,id:S.nextId++,plantas:plantasM,plantasRestantes:plantasM,etapa:sig,fechaEtapa:fechaMov,
+      bancalId:bancKey||null,movimientos:[{fecha:fechaMov,accion:`→ ${sig}`,detalle:`${plantasM} plantas${bL} (separado)`}]};
+    if (sig==='adulto') nl.fechaVenta=fmas(fechaMov,l.da);
+    S.lotes.push(nl); l.plantasRestantes=restantes;
+  } else {
+    l.etapa=sig; l.fechaEtapa=fechaMov; l.plantasRestantes=plantasM;
+    l.bancalId=bancKey||l.bancalId;
+    if (sig==='adulto') l.fechaVenta=fmas(fechaMov,l.da);
+  }
+  log('Movimiento',`${l.varNom}: ${etapaAnt}→${sig} | ${plantasM} plantas (${fracTubosStr(plantasM)} tubos)${bL}`);
+  save(); render();
+}
+
+function abrirCos(id) {
+  cosCtx={loteId:id};
+  const l=S.lotes.find(x=>x.id===id); if(!l) return;
+  el('mc-t').textContent=`Cosechar — ${l.varNom}`;
+  el('mc-b').innerHTML=`<div class="mc" style="margin-bottom:8px;font-size:11px">Plantas disponibles: <strong>${l.plantasRestantes}</strong> (${fracTubosStr(l.plantasRestantes)} tubos)</div>
+    <label>Plantas a cosechar (máx. ${l.plantasRestantes})</label>
+    <input type="number" id="cos-p" value="${l.plantasRestantes}" min="1" max="${l.plantasRestantes}">
+    <div id="cos-info" style="font-size:10px;color:var(--text-muted);margin-top:2px">${fracTubosStr(l.plantasRestantes)} tubos</div>
+    <label>Fecha cosecha</label><input type="date" id="cos-f" value="${hoy()}">
+    <label>Notas</label><input type="text" id="cos-n" placeholder="Calidad, destino...">`;
+  el('modal-cos').classList.add('open');
+  const ti=el('cos-p'); if(ti) ti.addEventListener('input',()=>{const p=parseInt(ti.value)||0;el('cos-info').textContent=`= ${fracTubosStr(p)} tubos`;});
+}
+
+function confCos() {
+  const l=S.lotes.find(x=>x.id===cosCtx.loteId); if(!l) return;
+  const p=Math.min(parseInt(el('cos-p').value)||l.plantasRestantes,l.plantasRestantes);
+  const f=el('cos-f').value||hoy(); const n=el('cos-n').value.trim(); const rest=l.plantasRestantes-p;
+  if (l.bancalId) remSlot(l.bancalId,l.varId,p);
+  if (!l.movimientos) l.movimientos=[];
+  l.movimientos.push({fecha:f,accion:'Cosecha',detalle:`${p} plantas (${fracTubosStr(p)} tubos)${n?' · '+n:''}${rest>0?' | '+rest+' restantes':''}`});
+  log('Cosecha',`${l.varNom}: ${p} plantas (${fracTubosStr(p)} tubos)`);
+  if (rest>0) l.plantasRestantes=rest; else {l.etapa='cosechado';l.bancalId=null;l.plantasRestantes=0;}
+  save(); cm('modal-cos'); render();
+}
+
+function abrirBanc(tipo,num) {
+  const k=`${tipo}_${num}`;const tL=tipo==='eng'?'Engorda':'Adulto';
+  const maxP=tipo==='eng'?20*PT:10*PT; const maxTub=tipo==='eng'?20:10;
+  const usP=plantasEnBanc(k); const libP=maxP-usP;
+  const slots=getBanc(k);
+  el('mb-t').textContent=`Bancal ${tL} ${num}`;
+  let h=`<div class="g3" style="margin-bottom:8px">
+    <div class="mc" style="text-align:center"><div class="lbl">Plantas</div><div class="vsm">${usP}</div><div style="font-size:9px;color:var(--text-muted)">${fracTubosStr(usP)} tubos</div></div>
+    <div class="mc" style="text-align:center"><div class="lbl">Espacio libre</div><div class="vsm" style="color:var(--text-success)">${libP}</div><div style="font-size:9px;color:var(--text-muted)">${fracTubosStr(libP)} tubos</div></div>
+    <div class="mc" style="text-align:center"><div class="lbl">Capacidad</div><div class="vsm" style="color:var(--text-muted)">${maxP}</div><div style="font-size:9px;color:var(--text-muted)">${maxTub} tubos</div></div>
+  </div>
+  <div class="pb"><div class="pf" style="width:${Math.round((usP/maxP)*100)}%;background:${usP===maxP?'var(--fill-warning)':'#2A7D2E'}"></div></div>`;
+  if (slots.length) {
+    const C=COLORS_VAR;
+    h+=`<div class="sl">Por variedad</div>`;
+    slots.forEach((s,i)=>{const p=Math.round((s.plantas/maxP)*100);
+      h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${C[i%C.length]};display:inline-block"></span>
+        <span style="font-size:11px;font-weight:500">${s.varNom}</span></div>
+        <span style="font-size:11px;color:var(--text-secondary)">${s.plantas} plantas · ${fracTubosStr(s.plantas)} tubos (${p}%)</span></div>
+      <div class="pb" style="margin-bottom:4px"><div class="pf" style="width:${p}%;background:${C[i%C.length]}"></div></div>`;});
+    h+=`<div class="sl">Lotes</div>`;
+    S.lotes.filter(l=>l.bancalId===k&&l.etapa!=='cosechado').forEach(l=>{
+      const dias=dd(l.fechaEtapa); const dObj=tipo==='eng'?l.de:l.da;
+      const pct=Math.min(100,Math.round((dias/dObj)*100)); const drest=dr(l.fechaVenta);
+      h+=`<div style="border:0.5px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="rm">${l.varNom}</div>
+          <div style="display:flex;gap:4px">
+            ${tipo==='adu'?`<button class="btn btn-p" style="font-size:10px;padding:3px 7px" onclick="cm('modal-banc');abrirCos(${l.id})">Cosechar</button>`:''}
+            <button class="btn" style="font-size:10px;padding:3px 6px" onclick="cm('modal-banc');abrirMov(${l.id})">Mover</button>
+            <button class="btn" style="font-size:10px;padding:3px 6px" onclick="cm('modal-banc');abrirLote(${l.id})">Ver</button>
+          </div></div>
+        <div class="rs">${l.plantasRestantes} plantas · ${fracTubosStr(l.plantasRestantes)} tubos · día ${dias}/${dObj}</div>
+        <div class="rs">Cosecha est. ${fd(l.fechaVenta)}</div>
+        <div class="pb" style="margin-top:3px"><div class="pf" style="width:${pct}%;background:${pct>=100?'var(--fill-success)':'#2A7D2E'}"></div></div>
+        ${drest<=5?`<div style="font-size:10px;color:var(--text-success);margin-top:2px">${drest<=0?'Lista para cosechar':'Lista en '+drest+' días'}</div>`:''}
+        ${l.notas?`<div style="font-size:10px;color:var(--text-muted);margin-top:3px;font-style:italic">${l.notas}</div>`:''}
+      </div>`;});
+  } else h+=`<p style="font-size:11px;color:var(--text-muted);margin-top:8px">Bancal libre.</p>`;
+  el('mb-b').innerHTML=h;
+  const footer=tipo==='eng'
+    ?`<button class="btn btn-d" onclick="limpiarBanc('${k}')">Limpiar bancal</button><button class="btn" onclick="cm('modal-banc')">Cerrar</button>`
+    :`<button class="btn" onclick="cm('modal-banc')">Cerrar</button>`;
+  el('mb-f').innerHTML=footer;
+  el('modal-banc').classList.add('open');
+}
+
+function limpiarBanc(k) {
+  if (!confirm('¿Eliminar todos los registros de este bancal?')) return;
+  S.lotes.filter(l=>l.bancalId===k&&l.etapa!=='cosechado').forEach(l=>{l.bancalId=null;log('Baja',`${l.varNom} removido de ${k}`);});
+  if (S.bancales) S.bancales[k]=[];
+  save(); cm('modal-banc'); render();
+}
+
+function setF(f,btn) { filtroV=f; document.querySelectorAll('.fb button:not(.vtb)').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); buildVentaChart(); buildVentaRows(); }
+function setV(v,btn) { vistaV=v; document.querySelectorAll('.vtb').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); buildVentaChart(); buildVentaRows(); }
+
+function getVentaData() {
+  const lotes=S.lotes||[], plan=S.plan||[], vars=(S.vars||[]).map(v=>v.nombre);
+  const REAL=[], PROY=[];
+  lotes.filter(l=>l.etapa!=='cosechado'&&l.plantasRestantes>0).forEach(l=>REAL.push({fecha:l.fechaVenta,var:l.varNom,plantas:l.plantasRestantes}));
+  const hoyD=new Date();
+  plan.forEach(p=>{
+    let ultima=p.ultimaSiembra?new Date(p.ultimaSiembra):new Date(hoyD.getTime()-p.freq*86400000);
+    for (let i=0;i<8;i++) {
+      ultima=new Date(ultima.getTime()+p.freq*86400000);
+      if (ultima>new Date(hoyD.getTime()+150*86400000)) break;
+      PROY.push({fecha:new Date(ultima.getTime()+(p.dp+p.de+p.da)*86400000).toISOString().split('T')[0],var:p.varNom,plantas:p.plantas});
+    }
+  });
+  return {REAL,PROY,vars};
+}
+
+function buildVentaChart() {
+  const canvas=el('chartV'); if(!canvas) return;
+  const {REAL,PROY,vars}=getVentaData();
+  const activeVars=filtroV==='todas'?vars:[filtroV];
+  const allDates=[...new Set([...REAL,...PROY].map(d=>d.fecha))].sort().slice(0,16);
+  const datasets=[];
+  activeVars.forEach((v,vi)=>{
+    const c=COLORS_VAR[vi%COLORS_VAR.length];
+    if (vistaV==='ambos'||vistaV==='real') datasets.push({label:`${v} (real)`,data:allDates.map(f=>{const r=REAL.find(d=>d.fecha===f&&d.var===v);return r?r.plantas:0;}),backgroundColor:c+'CC',borderColor:c,borderWidth:1,stack:`s_${v}`,order:1});
+    if (vistaV==='ambos'||vistaV==='proy') datasets.push({label:`${v} (proy.)`,data:allDates.map(f=>{const r=PROY.find(d=>d.fecha===f&&d.var===v);return r?r.plantas:0;}),backgroundColor:c+'44',borderColor:c,borderWidth:1.5,borderDash:[4,3],stack:`s_${v}`,order:2});
+  });
+  const tc='#888', gc='rgba(128,128,128,0.1)';
+  const labels=allDates.map(f=>{const d=new Date(f);return`${d.getDate()} ${MESES[d.getMonth()]}`;});
+  if (chartV) chartV.destroy();
+  chartV=new Chart(canvas,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'top',labels:{font:{size:10},color:tc,boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>ctx.parsed.y>0?`${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} plantas`:null}}},
+    scales:{x:{stacked:true,grid:{color:gc},ticks:{color:tc,font:{size:9}}},y:{stacked:true,grid:{color:gc},ticks:{color:tc,font:{size:9},callback:v=>v.toLocaleString()},beginAtZero:true}}}});
+  const vfEl=el('venta-var-filters'); if(vfEl) {
+    vfEl.innerHTML=`<button style="padding:3px 9px;border-radius:99px;font-size:10px;border:0.5px solid var(--border);background:${filtroV==='todas'?'#2A7D2E':'transparent'};color:${filtroV==='todas'?'#fff':'var(--text-secondary)'};cursor:pointer;font-family:inherit" onclick="setF('todas',this)">Todas</button>`+
+    vars.map(v=>`<button style="padding:3px 9px;border-radius:99px;font-size:10px;border:0.5px solid var(--border);background:${filtroV===v?'#2A7D2E':'transparent'};color:${filtroV===v?'#fff':'var(--text-secondary)'};cursor:pointer;font-family:inherit" onclick="setF('${v}',this)">${v}</button>`).join('');
+  }
+}
+
+function buildVentaRows() {
+  const {REAL,PROY}=getVentaData();
+  const activeVars=filtroV==='todas'?(S.vars||[]).map(v=>v.nombre):[filtroV];
+  let rows=[];
+  if (vistaV==='ambos'||vistaV==='real') REAL.filter(d=>activeVars.includes(d.var)).forEach(d=>rows.push({...d,tipo:'Real'}));
+  if (vistaV==='ambos'||vistaV==='proy') PROY.filter(d=>activeVars.includes(d.var)).forEach(d=>rows.push({...d,tipo:'Proyectado'}));
+  rows.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  el('vrows').innerHTML=rows.map(d=>{
+    const f=new Date(d.fecha); const drest=dr(d.fecha);
+    const fd2=`${f.getDate()} ${MESES[f.getMonth()]}`;
+    const vi=(S.vars||[]).findIndex(v=>v.nombre===d.var); const col=COLORS_VAR[vi%COLORS_VAR.length];
+    return`<div class="dr" style="grid-template-columns:70px 1fr 65px 60px 65px">
+      <div style="font-size:11px;color:${drest<=0?'var(--text-success)':'var(--text-secondary)'};font-weight:${drest<=0?500:400}">${fd2}${drest<=0?' · Hoy':drest===1?' · Mañana':''}</div>
+      <div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></div><span style="font-size:11px">${d.var}</span></div>
+      <div><span style="font-size:10px;font-weight:500;padding:1px 6px;border-radius:99px;background:${d.tipo==='Real'?'var(--bg-success)':'var(--bg-accent)'};color:${d.tipo==='Real'?'var(--text-success)':'var(--text-accent)'}">${d.tipo}</span></div>
+      <div style="font-size:10px;color:var(--text-muted)">adulto</div>
+      <div style="text-align:right;font-size:11px;font-weight:500">${d.plantas.toLocaleString()}</div>
+    </div>`;
+  }).join('')||'<p style="font-size:11px;color:var(--text-muted)">Sin datos.</p>';
+}
+
+function render() {
+  const lotes=S.lotes||[], enP=lotes.filter(l=>l.etapa==='plantines'), enE=lotes.filter(l=>l.etapa==='engorda'), enA=lotes.filter(l=>l.etapa==='adulto');
+  const listos=enA.filter(l=>dr(l.fechaVenta)<=0); const sum=a=>a.reduce((t,l)=>t+(l.plantasRestantes||0),0);
+  const merma=S.merma||{plantines:0,engorda:0,adulto:0};
+
+  if(el('r-stats'))el('r-stats').innerHTML=`<div class="stat ac"><div class="lbl">Plantas plantines</div><div class="val">${sum(enP)}</div></div><div class="stat wa"><div class="lbl">Plantas engorda</div><div class="val">${sum(enE)}</div></div><div class="stat su"><div class="lbl">Plantas adulto</div><div class="val">${sum(enA)}</div></div><div class="stat da"><div class="lbl">Listas venta</div><div class="val" style="color:var(--text-success)">${sum(listos)}</div></div>`;
+  if(el('r-merma'))el('r-merma').innerHTML=`<div class="mc"><div class="lbl">Merma plantines</div><div class="vsm" style="color:${merma.plantines>0?'var(--text-danger)':'var(--text-muted)'}">${merma.plantines}</div></div><div class="mc"><div class="lbl">Merma engorda</div><div class="vsm" style="color:${merma.engorda>0?'var(--text-danger)':'var(--text-muted)'}">${merma.engorda}</div></div><div class="mc"><div class="lbl">Merma adulto</div><div class="vsm" style="color:${merma.adulto>0?'var(--text-danger)':'var(--text-muted)'}">${merma.adulto}</div></div>`;
+
+  if(el('r-alertas')){
+    let h='';
+    lotes.filter(l=>l.etapa!=='cosechado').forEach(l=>{
+      if(l.etapa==='plantines'){const d=dr(fmas(l.fechaInicio,l.dp));if(d<=2)h+=`<div class="al w"><i class="ti ti-alert-triangle"></i>Mover a engorda: <strong>${l.varNom}</strong> ${l.plantasRestantes} plantas ${d<=0?'(pauta vencida)':'en '+d+' días'}</div>`;}
+      if(l.etapa==='engorda'){const d=dr(fmas(l.fechaEtapa,l.de));if(d<=2)h+=`<div class="al w"><i class="ti ti-alert-triangle"></i>Pasar a adulto: <strong>${l.varNom}</strong> ${l.plantasRestantes} plantas ${d<=0?'(pauta vencida)':'en '+d+' días'}</div>`;}
+      if(l.etapa==='adulto'){const d=dr(l.fechaVenta);if(d<=5)h+=`<div class="al g"><i class="ti ti-shopping-cart"></i>Lista para venta: <strong>${l.varNom}</strong> — ${l.plantasRestantes} plantas ${d<=0?'HOY':'en '+d+' días'}</div>`;}
+    });
+    (S.plan||[]).forEach(p=>{if(!p.ultimaSiembra||dd(p.ultimaSiembra)>=p.freq)h+=`<div class="al b"><i class="ti ti-seed"></i>Plan: sembrar <strong>${p.varNom}</strong> (${p.plantas} plantas)</div>`;});
+    el('r-alertas').innerHTML=h||'<p style="font-size:11px;color:var(--text-muted)">Sin alertas pendientes.</p>';
+  }
+
+  if(el('r-prox')){
+    const prox=lotes.filter(l=>l.etapa!=='cosechado').sort((a,b)=>new Date(a.fechaVenta)-new Date(b.fechaVenta)).slice(0,5);
+    el('r-prox').innerHTML=prox.length?prox.map(l=>{const d=dr(l.fechaVenta);return`<div class="row"><div><div class="rm">${l.varNom} <span class="badge b-${l.etapa}" style="margin-left:3px">${l.etapa}</span></div><div class="rs">${l.plantasRestantes} plantas · ${fracTubosStr(l.plantasRestantes)} tubos · est. ${fd(l.fechaVenta)}</div></div><div style="font-size:11px;font-weight:500;color:${d<=5?'var(--text-success)':'var(--text-secondary)'}">${d<=0?'Hoy':d+' días'}</div></div>`;}).join(''):'<p style="font-size:11px;color:var(--text-muted)">Sin lotes activos.</p>';
+  }
+
+  if(el('reg-hoy-panel')){
+    const fechas=[{f:hoy(),label:'Hoy',cls:'sp'},{f:man(),label:'Mañana',cls:'sp man'}];
+    let html='';let hayAlgo=false;
+    fechas.forEach(({f,label,cls})=>{
+      const items=(S.plan||[]).filter(p=>{const proxima=p.ultimaSiembra?fmas(p.ultimaSiembra,p.freq):hoy();return proxima===f;});
+      if(!items.length)return;hayAlgo=true;
+      html+=`<div class="${cls}"><div class="sph"><i class="ti ti-${f===hoy()?'sun':'moon'}"></i>Siembras de ${label} — ${fd(f)}</div>`;
+      items.forEach(p=>{
+        const sem=((S.inventario.semillas||{})[p.varId])||0,cub=S.inventario.cubos||0;
+        const ok=sem>=p.plantas&&cub>=p.plantas;const ya=sembradoEn(p.varId,f);const falta=Math.max(0,p.plantas-ya);
+        if(falta<=0){html+=`<div class="si"><div><div style="font-size:12px;font-weight:500">${p.varNom} <span class="badge b-ok">Completa ✓</span></div></div></div>`;return;}
+        html+=`<div class="si"><div><div style="font-size:12px;font-weight:500">${p.varNom}${ya>0?` <span class="badge b-wa">${ya}/${p.plantas}</span>`:''}</div>
+          <div class="rs">${falta} plantas · ${fracTubosStr(falta)} tubos</div>
+          <div style="font-size:10px;margin-top:2px;color:${ok?'var(--text-success)':'var(--text-danger)'}">Sem: ${sem} | Cubos: ${cub} ${ok?'✓':'— REVISAR'}</div></div>
+          ${f===hoy()?`<button class="btn btn-p" style="font-size:10px;flex-shrink:0" onclick="precargar(${p.varId},${falta},${p.dp},${p.de},${p.da})">Registrar</button>`:'<span class="badge b-p" style="font-size:10px;flex-shrink:0">Mañana</span>'}
+        </div>`;
+      });
+      html+='</div>';
+    });
+    el('reg-hoy-panel').innerHTML=hayAlgo?html:'<p style="font-size:11px;color:var(--text-muted)">Sin siembras programadas para hoy o mañana.</p>';
+  }
+
+  if(el('mesa-grupos')){
+    const enP2=S.lotes.filter(l=>l.etapa==='plantines');
+    el('mesa-empty').style.display=enP2.length?'none':'block';
+    if(enP2.length){
+      const grupos={};enP2.forEach(l=>{if(!grupos[l.varId])grupos[l.varId]=[];grupos[l.varId].push(l);});
+      el('mesa-grupos').innerHTML=Object.entries(grupos).map(([vId,lts])=>{
+        const v=gv(parseInt(vId));const col=gvColor(parseInt(vId));
+        const totalP=lts.reduce((a,l)=>a+l.plantasRestantes,0);
+        const vencidos=lts.some(l=>dd(l.fechaInicio)>=l.dp);
+        const badge=vencidos?'<span class="badge b-wa" style="margin-left:5px">mover a engorda</span>':'<span class="badge b-p" style="margin-left:5px">'+lts.length+' lote'+(lts.length>1?'s':'')+'</span>';
+        const lotesHTML=lts.map(l=>{
+          const dias=dd(l.fechaInicio);const pct=Math.min(100,Math.round((dias/l.dp)*100));
+          const bc=pct>=100?'var(--fill-success)':pct>=70?'var(--fill-warning)':'#2A7D2E';
+          return`<div class="lc" style="border-left:2px solid ${col}">
+            <div class="lch"><span style="font-size:11px;font-weight:500">Lote #${l.id} · ${fd(l.fechaInicio)}</span>
+              <div style="display:flex;gap:4px;align-items:center"><span class="badge b-p">día ${dias}</span>
+                <button class="btn btn-p" style="font-size:10px;padding:3px 7px" onclick="abrirMov(${l.id})">→ Engorda</button>
+                <button class="btn" style="font-size:10px;padding:3px 6px" onclick="abrirLote(${l.id})">Ver</button>
+              </div></div>
+            <div style="font-size:10px;color:var(--text-secondary)">${l.plantasRestantes} plantas · ${fracTubosStr(l.plantasRestantes)} tubos</div>
+            <div class="pb"><div class="pf" style="width:${pct}%;background:${bc}"></div></div>
+            <div style="font-size:9px;color:${pct>=100?'var(--text-warning)':'var(--text-muted)'};margin-top:2px">${pct}% de pauta (${l.dp}d)${pct>=100?' — ¡mover a engorda!':''}</div>
+            ${l.notas?`<div style="margin-top:5px;font-size:11px;color:var(--text-primary);font-style:italic">📝 ${l.notas}</div>`:''}
+          </div>`;}).join('');
+        return`<div class="vg"><div class="vgh" onclick="tgGroup(this)">
+          <div class="vgn"><div class="cdot" style="background:${col}"></div>${v.nombre}${badge}</div>
+          <div class="vgm"><span>${fracTubosStr(totalP)} tubos</span><span style="font-weight:500;color:var(--text-primary)">${totalP.toLocaleString()} plantas</span><i class="ti ti-chevron-down chev"></i></div>
+        </div><div class="vgb">${lotesHTML}</div></div>`;}).join('');
+    }
+  }
+
+  if(el('g-eng')){let h='';for(let i=1;i<=8;i++){const k=`eng_${i}`;const uP=plantasEnBanc(k);const s=getBanc(k);const vL=s.length?s.map(x=>x.varNom).join('/'):'—';h+=`<div class="bc ${uP>0?'eng':''}" onclick="abrirBanc('eng',${i})"><div class="bn">E${i}</div><div class="bv">${vL}</div><div class="bt">${fracTubosStr(uP)}/20</div></div>`;}el('g-eng').innerHTML=h;}
+  if(el('g-adu')){let h='';for(let i=1;i<=16;i++){const k=`adu_${i}`;const uP=plantasEnBanc(k);const s=getBanc(k);const vL=s.length?s.map(x=>x.varNom).join('/'):'—';h+=`<div class="bc ${uP>0?'adu':''}" onclick="abrirBanc('adu',${i})"><div class="bn">A${i}</div><div class="bv">${vL}</div><div class="bt">${fracTubosStr(uP)}/10</div></div>`;}el('g-adu').innerHTML=h;}
+
+  if(el('plan-list')){
+    el('plan-list').innerHTML=(S.plan||[]).length?(S.plan||[]).map(p=>{const vence=!p.ultimaSiembra||dd(p.ultimaSiembra)>=p.freq;const diasSig=p.ultimaSiembra?Math.max(0,p.freq-dd(p.ultimaSiembra)):0;
+      return`<div class="pr"><div><div style="font-size:12px;font-weight:500">${p.varNom} <span class="badge ${vence?'b-wa':'b-ok'}" style="margin-left:3px">${vence?'Sembrar ya':diasSig<=1?'Mañana':'en '+diasSig+' días'}</span></div>
+        <div class="rs">Cada ${p.freq===1?'día':p.freq+' días'} · ${p.plantas} plantas · ${p.ultimaSiembra?'Última: '+fd(p.ultimaSiembra):'Sin siembra'}</div>
+        <div class="rs">Pauta: ${p.dp}d + ${p.de}d + ${p.da}d = ${p.dp+p.de+p.da} días</div>
+      </div><button class="btn-d" onclick="delPlan(${p.id})">Eliminar</button></div>`;}).join(''):'<p style="font-size:11px;color:var(--text-muted);margin-top:7px">Sin plan definido.</p>';
+  }
+
+  if(el('inv-cubos-val'))el('inv-cubos-val').textContent=(S.inventario.cubos||0).toLocaleString();
+  if(el('inv-sem'))el('inv-sem').innerHTML=(S.vars||[]).map(v=>{const s=((S.inventario.semillas||{})[v.id])||0;const bajo=s<50;
+    return`<div class="ir"><div><div style="font-size:11px;font-weight:500${bajo?';color:var(--text-danger)':''}">${v.nombre}${bajo?' ⚠':''}</div><div style="font-size:9px;color:var(--text-muted)">${v.marca||'—'}</div></div><div style="font-size:14px;font-weight:500;color:${bajo?'var(--text-danger)':'var(--text-primary)'}">${s}</div></div>`;}).join('');
+  if(el('inv-proy')){
+    const plan=S.plan||[];
+    if(!plan.length)el('inv-proy').innerHTML='<p style="font-size:11px;color:var(--text-muted)">Define el plan para ver proyecciones.</p>';
+    else{let h='';const cxd=plan.reduce((t,p)=>t+(p.plantas/p.freq),0);const cStock=S.inventario.cubos||0;
+      if(cxd>0){const dc=Math.floor(cStock/cxd);const fa=fmas(hoy(),dc);h+=`<div class="al ${dc<=14?'w':'g'}" style="margin-bottom:6px"><i class="ti ti-box"></i><div><strong>Cubos</strong> — ${cStock} en stock · ${cxd.toFixed(1)}/día<br>${dc<=0?'<strong>Agotados</strong>':`Se agotan en <strong>${dc} días</strong> (${fd(fa)})`}</div></div>`;}
+      plan.forEach(p=>{const sem=((S.inventario.semillas||{})[p.varId])||0;const xd=p.plantas/p.freq;const d=Math.floor(sem/xd);const fa=fmas(hoy(),d);
+        h+=`<div class="al ${d<=14?'w':'g'}" style="margin-bottom:6px"><i class="ti ti-seed"></i><div><strong>${p.varNom}</strong> — ${sem} semillas · ${xd.toFixed(1)}/día<br>${d<=0?'<strong>Agotadas</strong>':`Se agotan en <strong>${d} días</strong> (${fd(fa)})`}</div></div>`;});
+      el('inv-proy').innerHTML=h;}
+  }
+
+  ['pv','rv','iv'].forEach(sid=>{const s=el(sid);if(!s)return;const cur=s.value;s.innerHTML='<option value="">Seleccionar...</option>'+(S.vars||[]).map(v=>`<option value="${v.id}">${v.nombre}${v.marca?' — '+v.marca:''}</option>`).join('');if(cur)s.value=cur;});
+  const rfEl=el('rfecha');if(rfEl&&!rfEl.value)rfEl.value=hoy();
+  if(el('var-list'))el('var-list').innerHTML=(S.vars||[]).map(v=>`<div class="row"><div><div class="rm">${v.nombre}</div><div class="rs">${v.marca||'—'}${v.tipo?' · '+v.tipo:''}</div></div><button class="btn-d" onclick="delVar(${v.id})">Eliminar</button></div>`).join('')||'<p style="font-size:11px;color:var(--text-muted)">Sin variedades.</p>';
+  if(el('hist-list')){const h=S.historial||[];el('hist-list').innerHTML=h.length?h.map(x=>`<div class="dr" style="grid-template-columns:68px 85px 1fr"><span style="color:var(--text-muted);font-weight:500">${fd(x.fecha)}</span><span style="font-weight:500">${x.accion}</span><span>${x.detalle}</span></div>`).join(''):'<p style="font-size:11px;color:var(--text-muted)">Sin registros.</p>';}
+
+  const listos2=lotes.filter(l=>l.etapa==='adulto'&&dr(l.fechaVenta)<=0);
+  const nAl=lotes.filter(l=>{if(l.etapa==='plantines')return dr(fmas(l.fechaInicio,l.dp))<=0;if(l.etapa==='engorda')return dr(fmas(l.fechaEtapa,l.de))<=0;return false;}).length+((S.plan||[]).filter(p=>!p.ultimaSiembra||dd(p.ultimaSiembra)>=p.freq).length);
+  const pills=el('top-pills');if(pills){pills.innerHTML='';if(nAl>0)pills.innerHTML+=`<span class="pill pill-w"><i class="ti ti-alert-triangle" style="font-size:9px"></i>${nAl} alerta${nAl>1?'s':''}</span>`;if(listos2.length>0)pills.innerHTML+=`<span class="pill pill-g"><i class="ti ti-check" style="font-size:9px"></i>${listos2.reduce((t,l)=>t+l.plantasRestantes,0).toLocaleString()} listas venta</span>`;}
+}
+
+function precargar(vId,plantas,dp,de,da){const s=el('rv');if(s)s.value=vId;const c=el('rc');if(c)c.value=plantas;const d1=el('rdp');if(d1)d1.value=dp;const d2=el('rde');if(d2)d2.value=de;const d3=el('rda');if(d3)d3.value=da;const rf=el('rfecha');if(rf)rf.value=hoy();updAlerta();document.querySelector('.content').scrollTo(0,500);}
+function tgGroup(head){const body=head.nextElementSibling;const ch=head.querySelector('.chev');body.classList.toggle('open');ch.classList.toggle('open');}
+
+const now=new Date();
+el('pdate').textContent=`${DIAS_L[now.getDay()]}, ${now.getDate()} de ${MESES_L[now.getMonth()]} ${now.getFullYear()}`;
+
+cargarDesdeServidor();
+</script>
+</body></html>
+HTMLEOF
+echo "Done"
+Output
+
+Done
+Done
+
+
+
+
+
+
