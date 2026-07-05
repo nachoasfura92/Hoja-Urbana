@@ -39,6 +39,11 @@ yarn-error.log*
 # claude code local settings (machine/session-specific)
 .claude/settings.local.json
 
+# proyecto original (Express + Google Sheets) que se reemplazo con esta app;
+# se conserva solo localmente como referencia, no debe ir al repo desplegado
+# (un segundo package.json ahi confundia la deteccion de monorepo de Vercel)
+/Recursos
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
