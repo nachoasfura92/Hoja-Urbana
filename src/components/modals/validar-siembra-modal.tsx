@@ -11,6 +11,7 @@ export function ValidarSiembraModal({
   onOpenChange,
   evaluacion,
   plantas,
+  bandera,
   fechaSiembra,
   onConfirm,
 }: {
@@ -18,6 +19,7 @@ export function ValidarSiembraModal({
   onOpenChange: (open: boolean) => void;
   evaluacion: EvaluacionSiembra | null;
   plantas: number;
+  bandera: number;
   fechaSiembra: string;
   onConfirm: () => void;
 }) {
@@ -36,6 +38,7 @@ export function ValidarSiembraModal({
             <Row label="Fecha de siembra" value={fd(fechaSiembra)} />
             <Row label="Plantas" value={String(plantas)} />
             <Row label="Tubos equivalentes" value={`${fracTubosStr(plantas)} tubos`} />
+            <Row label="N° de bandera" value={String(bandera)} />
           </div>
 
           {sem < plantas && (

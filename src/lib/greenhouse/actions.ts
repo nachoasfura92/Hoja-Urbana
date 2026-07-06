@@ -74,6 +74,7 @@ export interface ConfirmarSiembraParams {
   de: number;
   da: number;
   notas: string;
+  bandera: number;
   autor?: string;
 }
 
@@ -92,6 +93,7 @@ export function confirmarSiembra(draft: EstadoInvernadero, p: ConfirmarSiembraPa
     da: p.da,
     notas: p.notas,
     bancalId: null,
+    bandera: p.bandera,
     fechaVenta: fmas(p.fechaSiembra, p.dp + p.de + p.da),
     movimientos: [
       {

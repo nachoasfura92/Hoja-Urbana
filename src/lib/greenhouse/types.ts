@@ -34,6 +34,10 @@ export interface Lote {
   bancalId: string | null;
   fechaVenta: string;
   movimientos: Movimiento[];
+  // Número de la banderita física puesta en el invernadero al sembrar. Se
+  // recicla entre lotes (no es único): sigue a la planta durante su vida y se
+  // reutiliza en otra siembra una vez que este lote se cosecha.
+  bandera: number;
 }
 
 export interface PlanItem {

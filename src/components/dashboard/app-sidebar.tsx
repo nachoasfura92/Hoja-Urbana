@@ -73,12 +73,12 @@ function SidebarLogo() {
   }
 
   return (
-    <div className="flex items-center px-2 py-1.5 group-data-[collapsible=icon]:justify-center">
+    <div className="flex items-center px-2 py-2 group-data-[collapsible=icon]:justify-center">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/logo.png"
         alt="Hoja Urbana"
-        className="h-8 w-auto max-w-full object-contain group-data-[collapsible=icon]:h-7"
+        className="h-14 w-auto max-w-full object-contain group-data-[collapsible=icon]:h-9"
         onError={() => setLogoFailed(true)}
       />
     </div>

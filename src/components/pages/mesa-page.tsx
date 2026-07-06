@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MiniProgress } from '@/components/dashboard/mini-progress';
+import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { dd, fd, fracTubosStr, gv, gvColor } from '@/lib/greenhouse/helpers';
@@ -83,8 +84,9 @@ export function MesaPage() {
                       style={{ borderLeft: `2px solid ${color}` }}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
-                        <span className="text-sm font-medium">
+                        <span className="flex items-center gap-1.5 text-sm font-medium">
                           Lote #{l.id} · {fd(l.fechaInicio)}
+                          <BanderaBadge numero={l.bandera} />
                         </span>
                         <div className="flex items-center gap-1.5">
                           <Badge variant="outline" className="border-transparent bg-accent text-accent-foreground">

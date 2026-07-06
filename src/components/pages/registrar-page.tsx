@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Moon, Plus, Sun } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Flag, Moon, Plus, Sun } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,7 @@ export function RegistrarPage() {
   const [vId, setVId] = useState('');
   const [fecha, setFecha] = useState(hoy());
   const [plantas, setPlantas] = useState(20);
+  const [bandera, setBandera] = useState<number | ''>('');
   const [dp, setDp] = useState(14);
   const [de, setDe] = useState(21);
   const [da, setDa] = useState(21);
@@ -47,6 +48,7 @@ export function RegistrarPage() {
   function precargar(varId: number, cantidad: number, dpv: number, dev: number, dav: number) {
     setVId(String(varId));
     setPlantas(cantidad);
+    setBandera('');
     setDp(dpv);
     setDe(dev);
     setDa(dav);
@@ -55,12 +57,12 @@ export function RegistrarPage() {
   }
 
   function handleRegistrar() {
-    if (!vIdNum || !plantas) return;
+    if (!vIdNum || !plantas || !bandera) return;
     setModalOpen(true);
   }
 
   function handleConfirmar() {
-    if (!vIdNum) return;
+    if (!vIdNum || !bandera) return;
     update((draft) => {
       confirmarSiembra(draft, {
         vId: vIdNum,
@@ -71,11 +73,13 @@ export function RegistrarPage() {
         de,
         da,
         notas,
+        bandera,
         autor: displayName || email || undefined,
       });
     });
     setModalOpen(false);
     setNotas('');
+    setBandera('');
   }
 
   const bloques = [
@@ -201,14 +205,29 @@ export function RegistrarPage() {
             <Label>Fecha de siembra</Label>
             <DatePicker value={fecha} onChange={setFecha} />
           </div>
-          <div className="grid gap-1.5">
-            <Label>Cantidad de plantas</Label>
-            <Input
-              type="number"
-              min={1}
-              value={plantas}
-              onChange={(e) => setPlantas(parseInt(e.target.value, 10) || 0)}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label>Cantidad de plantas</Label>
+              <Input
+                type="number"
+                min={1}
+                value={plantas}
+                onChange={(e) => setPlantas(parseInt(e.target.value, 10) || 0)}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="flex items-center gap-1">
+                <Flag className="size-3" />
+                N° de bandera
+              </Label>
+              <Input
+                type="number"
+                min={1}
+                placeholder="Ej: 4"
+                value={bandera}
+                onChange={(e) => setBandera(e.target.value ? parseInt(e.target.value, 10) : '')}
+              />
+            </div>
           </div>
 
           {evaluacion && plantas > 0 && evaluacion.plan && (
@@ -253,7 +272,7 @@ export function RegistrarPage() {
             <Textarea rows={2} placeholder="Observaciones..." value={notas} onChange={(e) => setNotas(e.target.value)} />
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleRegistrar} disabled={!vIdNum || !plantas}>
+            <Button onClick={handleRegistrar} disabled={!vIdNum || !plantas || !bandera}>
               Registrar siembra
             </Button>
           </div>
@@ -265,6 +284,7 @@ export function RegistrarPage() {
         onOpenChange={setModalOpen}
         evaluacion={evaluacion}
         plantas={plantas}
+        bandera={bandera || 0}
         fechaSiembra={fecha}
         onConfirm={handleConfirmar}
       />

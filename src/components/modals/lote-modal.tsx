@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { MiniProgress } from '@/components/dashboard/mini-progress';
+import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { eliminarPlantas } from '@/lib/greenhouse/actions';
@@ -71,8 +72,9 @@ export function LoteModal() {
       <Dialog open={!!loteId && !eliminarOpen} onOpenChange={(o) => !o && closeLote()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
               {lote.varNom} — {lote.etapa}
+              <BanderaBadge numero={lote.bandera} />
             </DialogTitle>
           </DialogHeader>
 

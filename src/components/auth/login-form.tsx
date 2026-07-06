@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sprout } from 'lucide-react';
+import { LoginLogo } from './login-logo';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,9 +36,7 @@ export function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-secondary/40 to-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center gap-2">
-          <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Sprout className="size-6" />
-          </div>
+          <LoginLogo />
           <CardTitle className="text-xl">Hoja Urbana</CardTitle>
           <CardDescription>Panel de control del invernadero</CardDescription>
         </CardHeader>

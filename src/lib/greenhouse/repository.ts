@@ -112,6 +112,7 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     bancalId: l.bancal_id,
     fechaVenta: l.fecha_venta,
     movimientos: movimientosPorLote.get(l.id) || [],
+    bandera: l.bandera ?? 0,
   }));
 
   const bancales: Bancales = {};
@@ -203,6 +204,7 @@ export async function guardarEstadoEnTablas(supabase: DB, state: EstadoInvernade
     notas: l.notas ?? null,
     bancal_id: l.bancalId,
     fecha_venta: l.fechaVenta,
+    bandera: l.bandera,
   }));
   await upsertYPodar(supabase, 'lotes', loteRows, 'id');
 
