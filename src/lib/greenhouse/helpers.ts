@@ -174,6 +174,27 @@ export function computeTopPills(state: EstadoInvernadero): { nAlertas: number; l
   return { nAlertas: nAl, listasVenta: listos2.reduce((t, l) => t + l.plantasRestantes, 0) };
 }
 
+// ── Buscador de lotes (por bandera y filtros) ─────────────────────────────
+
+export interface FiltrosLotes {
+  bandera?: number | null;
+  varId?: number | null;
+  diasCrecimientoMin?: number | null;
+  diasCosechaMax?: number | null;
+}
+
+// Solo busca entre lotes activos: una vez cosechado, el lote ya no está
+// físicamente en el invernadero (su bandera ya se recicló en otra siembra).
+export function buscarLotes(lotes: Lote[], filtros: FiltrosLotes): Lote[] {
+  return (lotes || [])
+    .filter((l) => l.etapa !== 'cosechado')
+    .filter((l) => !filtros.bandera || l.bandera === filtros.bandera)
+    .filter((l) => !filtros.varId || l.varId === filtros.varId)
+    .filter((l) => filtros.diasCrecimientoMin == null || dd(l.fechaEtapa) >= filtros.diasCrecimientoMin)
+    .filter((l) => filtros.diasCosechaMax == null || dr(l.fechaVenta) <= filtros.diasCosechaMax)
+    .sort((a, b) => dr(a.fechaVenta) - dr(b.fechaVenta));
+}
+
 export function defS(): EstadoInvernadero {
   return {
     vars: [

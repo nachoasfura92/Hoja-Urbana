@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SearchLotes } from '@/components/dashboard/search-lotes';
 import { createClient } from '@/lib/supabase/client';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { computeTopPills } from '@/lib/greenhouse/helpers';
@@ -59,6 +60,7 @@ export function Topbar({ activeTab, userEmail }: { activeTab: TabId; userEmail?:
             {listasVenta.toLocaleString()} listas venta
           </Badge>
         )}
+        <SearchLotes />
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="rounded-full" />}>
             <Avatar className="size-8">
