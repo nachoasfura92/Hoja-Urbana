@@ -213,7 +213,7 @@ export function proximaBandera(lotes: Lote[], excluir?: Set<number>): number {
 // Primer bancal del tipo dado con espacio libre suficiente para `plantas`;
 // si ninguno alcanza, devuelve el primero con algo de espacio libre (o null).
 export function primerBancalConEspacio(bancales: Bancales, tipo: 'eng' | 'adu', plantas: number): string | null {
-  const maxBanc = tipo === 'eng' ? 8 : 16;
+  const maxBanc = tipo === 'eng' ? 9 : 16;
   const maxP = tipo === 'eng' ? 20 * PT : 10 * PT;
   let fallback: string | null = null;
   for (let i = 1; i <= maxBanc; i++) {

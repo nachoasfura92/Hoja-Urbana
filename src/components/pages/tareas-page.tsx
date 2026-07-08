@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { TareaModal } from '@/components/modals/tarea-modal';
+import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals/resumen-registro-dialog';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra, ejecutarMovimiento } from '@/lib/greenhouse/actions';
-import { fracTubosStr, hoy } from '@/lib/greenhouse/helpers';
+import { fd, fracTubosStr, hoy } from '@/lib/greenhouse/helpers';
 import { bancalLabel, calcularTareasHoy, type TareaHoy } from '@/lib/greenhouse/tareas';
 
 function EstadoBadge({ dias }: { dias: number }) {
@@ -39,27 +40,28 @@ export function TareasPage() {
   const { displayName, email } = useCurrentUser();
   const autor = displayName || email || undefined;
   const [editando, setEditando] = useState<TareaHoy | null>(null);
+  const [resumen, setResumen] = useState<ResumenRegistro | null>(null);
 
   const tareas = useMemo(() => calcularTareasHoy(state), [state]);
 
-  function completar(t: TareaHoy) {
-    if (t.tipo === 'sembrar') {
-      update((draft) =>
-        confirmarSiembra(draft, {
-          vId: t.varId,
-          varNombre: t.varNom,
-          plantas: t.cantidadSugerida,
-          fechaSiembra: hoy(),
-          dp: t.dp!,
-          de: t.de!,
-          da: t.da!,
-          notas: '',
-          bandera: t.banderaSugerida!,
-          autor,
-        })
-      );
-      return;
-    }
+  function ejecutarSembrar(t: TareaHoy) {
+    update((draft) =>
+      confirmarSiembra(draft, {
+        vId: t.varId,
+        varNombre: t.varNom,
+        plantas: t.cantidadSugerida,
+        fechaSiembra: hoy(),
+        dp: t.dp!,
+        de: t.de!,
+        da: t.da!,
+        notas: '',
+        bandera: t.banderaSugerida!,
+        autor,
+      })
+    );
+  }
+
+  function ejecutarTraspaso(t: TareaHoy) {
     const lote = state.lotes.find((l) => l.id === t.loteId);
     if (!lote || !t.bancalSugerido) return;
     update((draft) =>
@@ -76,6 +78,43 @@ export function TareasPage() {
         autor,
       })
     );
+  }
+
+  // "Completar" con los valores sugeridos ejecuta directo solo si la tarea es
+  // de hoy; si es de otro día (vencida o de mañana) pide confirmación con un
+  // resumen antes de registrar (igual que cuando se edita la tarea).
+  function completar(t: TareaHoy) {
+    if (t.diasRestantes === 0) {
+      if (t.tipo === 'sembrar') ejecutarSembrar(t);
+      else ejecutarTraspaso(t);
+      return;
+    }
+    if (t.tipo === 'sembrar') {
+      setResumen({
+        titulo: `Confirmar siembra — ${t.varNom}`,
+        filas: [
+          { label: 'Cantidad', value: `${t.cantidadSugerida} plantas (${fracTubosStr(t.cantidadSugerida)} tubos)` },
+          { label: 'Fecha', value: fd(hoy()) },
+          { label: 'N° de bandera', value: String(t.banderaSugerida) },
+        ],
+        ejecutar: () => ejecutarSembrar(t),
+      });
+      return;
+    }
+    if (!t.bancalSugerido) return;
+    setResumen({
+      titulo:
+        t.tipo === 'traspaso_engorda'
+          ? `Confirmar traspaso a engorda — bandera N°${t.bandera}`
+          : `Confirmar traspaso a adulto — ${t.varNom}`,
+      filas: [
+        { label: 'Variedad', value: t.varNom },
+        { label: 'Cantidad', value: `${t.cantidadSugerida} plantas (${fracTubosStr(t.cantidadSugerida)} tubos)` },
+        { label: 'Fecha', value: fd(hoy()) },
+        { label: 'Bancal destino', value: bancalLabel(t.bancalSugerido) },
+      ],
+      ejecutar: () => ejecutarTraspaso(t),
+    });
   }
 
   if (!tareas.length) {
@@ -116,17 +155,13 @@ export function TareasPage() {
                           ({t.varNom}) a engorda
                         </>
                       )}
-                      {t.tipo === 'traspaso_adulto' && `Traspasar ${t.varNom} (${bancalLabel(t.bancalOrigen ?? null)}) a adulto`}
+                      {t.tipo === 'traspaso_adulto' &&
+                        `Traspasar ${t.varNom} (${bancalLabel(t.bancalOrigen ?? null)}) a adulto`}
                       <EstadoBadge dias={t.diasRestantes} />
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {t.cantidadSugerida} plantas · {fracTubosStr(t.cantidadSugerida)} tubos
-                      {t.tipo === 'sembrar' && (
-                        <>
-                          {' '}
-                          · bandera sugerida N° {t.banderaSugerida}
-                        </>
-                      )}
+                      {t.tipo === 'sembrar' && <> · bandera sugerida N° {t.banderaSugerida}</>}
                       {t.tipo !== 'sembrar' && (
                         <>
                           {' '}
@@ -158,6 +193,7 @@ export function TareasPage() {
         })}
       </div>
       <TareaModal tarea={editando} onClose={() => setEditando(null)} />
+      <ResumenRegistroDialog resumen={resumen} onClose={() => setResumen(null)} />
     </>
   );
 }

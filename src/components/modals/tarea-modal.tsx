@@ -8,11 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/dashboard/date-picker';
+import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals/resumen-registro-dialog';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra, ejecutarMovimiento, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
 import { PT } from '@/lib/greenhouse/constants';
-import { fracTubosStr, getBanc, hoy, plantasEnBanc } from '@/lib/greenhouse/helpers';
+import { fd, fracTubosStr, getBanc, hoy, plantasEnBanc } from '@/lib/greenhouse/helpers';
 import { bancalLabel, type TareaHoy } from '@/lib/greenhouse/tareas';
 
 export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose: () => void }) {
@@ -25,6 +26,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
   const [bandera, setBandera] = useState(0);
   const [bancKey, setBancKey] = useState('');
   const [pending, setPending] = useState<EjecutarMovimientoParams | null>(null);
+  const [resumen, setResumen] = useState<ResumenRegistro | null>(null);
 
   // Reinicializa el formulario cuando se abre una tarea distinta (patrón
   // "ajustar estado durante el render" en vez de un efecto).
@@ -35,11 +37,13 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
     setCantidad(tarea.cantidadSugerida);
     setBandera(tarea.banderaSugerida || 0);
     setBancKey(tarea.bancalSugerido || '');
+    setPending(null);
+    setResumen(null);
   }
 
   const esSiembra = tarea?.tipo === 'sembrar';
   const tipoBancal = tarea?.tipo === 'traspaso_engorda' ? 'eng' : 'adu';
-  const maxBanc = tipoBancal === 'eng' ? 8 : 16;
+  const maxBanc = tipoBancal === 'eng' ? 9 : 16;
   const maxP = tipoBancal === 'eng' ? 20 * PT : 10 * PT;
 
   const opciones = useMemo(() => {
@@ -72,21 +76,32 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
   function handleConfirmar() {
     if (esSiembra) {
       const cant = cantidad || tarea!.cantidadSugerida;
-      update((draft) =>
-        confirmarSiembra(draft, {
-          vId: tarea!.varId,
-          varNombre: tarea!.varNom,
-          plantas: cant,
-          fechaSiembra: fecha,
-          dp: tarea!.dp!,
-          de: tarea!.de!,
-          da: tarea!.da!,
-          notas: '',
-          bandera: bandera || tarea!.banderaSugerida || 1,
-          autor,
-        })
-      );
-      onClose();
+      const band = bandera || tarea!.banderaSugerida || 1;
+      setResumen({
+        titulo: `Confirmar siembra — ${tarea!.varNom}`,
+        filas: [
+          { label: 'Cantidad', value: `${cant} plantas (${fracTubosStr(cant)} tubos)` },
+          { label: 'Fecha', value: fd(fecha) },
+          { label: 'N° de bandera', value: String(band) },
+        ],
+        ejecutar: () => {
+          update((draft) =>
+            confirmarSiembra(draft, {
+              vId: tarea!.varId,
+              varNombre: tarea!.varNom,
+              plantas: cant,
+              fechaSiembra: fecha,
+              dp: tarea!.dp!,
+              de: tarea!.de!,
+              da: tarea!.da!,
+              notas: '',
+              bandera: band,
+              autor,
+            })
+          );
+          onClose();
+        },
+      });
       return;
     }
 
@@ -120,16 +135,37 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
     if (restantes > 0) {
       setPending(params);
     } else {
-      update((draft) => ejecutarMovimiento(draft, params));
-      onClose();
+      mostrarResumenTraspaso(params);
     }
+  }
+
+  function mostrarResumenTraspaso(params: EjecutarMovimientoParams) {
+    setResumen({
+      titulo:
+        tarea!.tipo === 'traspaso_engorda'
+          ? `Confirmar traspaso a engorda — bandera N°${tarea!.bandera}`
+          : `Confirmar traspaso a adulto — ${tarea!.varNom}`,
+      filas: [
+        { label: 'Variedad', value: tarea!.varNom },
+        { label: 'Cantidad', value: `${params.plantasM} plantas (${fracTubosStr(params.plantasM)} tubos)` },
+        { label: 'Fecha', value: fd(params.fechaMov) },
+        { label: 'Bancal destino', value: bancalLabel(params.bancKey) },
+        ...(params.restantes > 0
+          ? [{ label: 'Restantes', value: `${params.restantes} plantas (${params.mermaRes === 'merma' ? 'merma' : 'pendientes'})` }]
+          : []),
+      ],
+      ejecutar: () => {
+        update((draft) => ejecutarMovimiento(draft, params));
+        onClose();
+      },
+    });
   }
 
   function resolverMerma(tipoRes: 'merma' | 'pendiente') {
     if (!pending) return;
-    update((draft) => ejecutarMovimiento(draft, { ...pending, mermaRes: tipoRes }));
+    const params = { ...pending, mermaRes: tipoRes };
     setPending(null);
-    onClose();
+    mostrarResumenTraspaso(params);
   }
 
   const titulo = esSiembra
@@ -140,7 +176,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
 
   return (
     <>
-      <Dialog open={!!tarea && !pending} onOpenChange={(o) => !o && onClose()}>
+      <Dialog open={!!tarea && !pending && !resumen} onOpenChange={(o) => !o && onClose()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{titulo}</DialogTitle>
@@ -226,6 +262,8 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ResumenRegistroDialog resumen={resumen} onClose={() => setResumen(null)} />
     </>
   );
 }

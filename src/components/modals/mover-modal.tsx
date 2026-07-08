@@ -54,7 +54,7 @@ export function MoverModal() {
   const opciones = useMemo(() => {
     if (!lote) return [];
     const tipo = modoReubicar ? 'adu' : sig === 'engorda' ? 'eng' : 'adu';
-    const maxBanc = modoReubicar ? 16 : sig === 'engorda' ? 8 : 16;
+    const maxBanc = modoReubicar ? 16 : sig === 'engorda' ? 9 : 16;
     const maxP = tipo === 'eng' ? 20 * PT : 10 * PT;
     return Array.from({ length: maxBanc }, (_, idx) => {
       const i = idx + 1;
