@@ -180,6 +180,8 @@ export function ejecutarMovimiento(draft: EstadoInvernadero, params: EjecutarMov
       etapa: sig,
       fechaEtapa: fechaMov,
       bancalId: bancKey || null,
+      // La bandera es solo de mesa de plantines: se libera al avanzar de etapa.
+      bandera: 0,
       movimientos: [
         { id: draft.nextId++, fecha: fechaMov, accion: `→ ${sig}`, detalle: `${plantasM} plantas${bL} (separado)`, autor },
       ],
@@ -192,6 +194,7 @@ export function ejecutarMovimiento(draft: EstadoInvernadero, params: EjecutarMov
     l.fechaEtapa = fechaMov;
     l.plantasRestantes = plantasM;
     l.bancalId = bancKey || l.bancalId;
+    l.bandera = 0;
     if (sig === 'adulto') l.fechaVenta = fmas(fechaMov, l.da);
   }
   log(draft, 'Movimiento', `${l.varNom}: ${etapaAnt}→${sig} | ${plantasM} plantas (${fracTubosStr(plantasM)} tubos)${bL}`, autor);

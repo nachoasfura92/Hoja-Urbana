@@ -195,6 +195,36 @@ export function buscarLotes(lotes: Lote[], filtros: FiltrosLotes): Lote[] {
     .sort((a, b) => dr(a.fechaVenta) - dr(b.fechaVenta));
 }
 
+// ── Banderas (identificador físico en mesa de plantines) ───────────────────
+// Solo está "en uso" mientras el lote sigue en mesa de plantines; al
+// traspasarse a engorda se libera (ver ejecutarMovimiento) para reciclarse
+// en siembras futuras y mantener un inventario mínimo de banderitas físicas.
+export function banderasEnUso(lotes: Lote[]): Set<number> {
+  return new Set((lotes || []).filter((l) => l.etapa === 'plantines' && l.bandera > 0).map((l) => l.bandera));
+}
+
+export function proximaBandera(lotes: Lote[], excluir?: Set<number>): number {
+  const enUso = banderasEnUso(lotes);
+  let n = 1;
+  while (enUso.has(n) || excluir?.has(n)) n++;
+  return n;
+}
+
+// Primer bancal del tipo dado con espacio libre suficiente para `plantas`;
+// si ninguno alcanza, devuelve el primero con algo de espacio libre (o null).
+export function primerBancalConEspacio(bancales: Bancales, tipo: 'eng' | 'adu', plantas: number): string | null {
+  const maxBanc = tipo === 'eng' ? 8 : 16;
+  const maxP = tipo === 'eng' ? 20 * PT : 10 * PT;
+  let fallback: string | null = null;
+  for (let i = 1; i <= maxBanc; i++) {
+    const k = `${tipo}_${i}`;
+    const libre = maxP - plantasEnBanc(bancales, k);
+    if (libre >= plantas) return k;
+    if (libre > 0 && !fallback) fallback = k;
+  }
+  return fallback;
+}
+
 export function defS(): EstadoInvernadero {
   return {
     vars: [

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import {
+  CalendarCheck,
   ClipboardList,
   History,
   LayoutDashboard,
@@ -34,7 +35,13 @@ interface NavItem {
 }
 
 const NAV: { section: string; items: NavItem[] }[] = [
-  { section: 'General', items: [{ id: 'resumen', label: 'Resumen', icon: LayoutDashboard }] },
+  {
+    section: 'General',
+    items: [
+      { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
+      { id: 'tareas', label: 'Tareas de hoy', icon: CalendarCheck },
+    ],
+  },
   {
     section: 'Operación',
     items: [

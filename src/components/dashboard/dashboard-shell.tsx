@@ -12,6 +12,7 @@ import { SyncStatus } from './sync-status';
 import { NamePromptDialog } from './name-prompt-dialog';
 import type { TabId } from '@/lib/greenhouse/constants';
 import { ResumenPage } from '@/components/pages/resumen-page';
+import { TareasPage } from '@/components/pages/tareas-page';
 import { RegistrarPage } from '@/components/pages/registrar-page';
 import { MesaPage } from '@/components/pages/mesa-page';
 import { BancalesPage } from '@/components/pages/bancales-page';
@@ -28,6 +29,7 @@ import { BancalModal } from '@/components/modals/bancal-modal';
 
 const TABS: TabId[] = [
   'resumen',
+  'tareas',
   'registrar',
   'mesa',
   'bancales',
@@ -75,6 +77,7 @@ function DashboardContent({ userEmail }: { userEmail?: string | null }) {
             return (
               <div key={tab} className={tab === activeTab ? '' : 'hidden'}>
                 {tab === 'resumen' && <ResumenPage />}
+                {tab === 'tareas' && <TareasPage />}
                 {tab === 'registrar' && <RegistrarPage />}
                 {tab === 'mesa' && <MesaPage />}
                 {tab === 'bancales' && <BancalesPage />}

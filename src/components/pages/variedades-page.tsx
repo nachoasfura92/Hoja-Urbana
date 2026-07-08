@@ -44,7 +44,7 @@ export function VariedadesPage() {
         <CardContent className="grid gap-3">
           <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1.5">
-              <Label>Nombre</Label>
+              <Label>Variedad</Label>
               <Input placeholder="Española" value={nombre} onChange={(e) => setNombre(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
@@ -52,7 +52,7 @@ export function VariedadesPage() {
               <Input placeholder="Hazera" value={marca} onChange={(e) => setMarca(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Tipo</Label>
+              <Label>Nombre</Label>
               <Input placeholder="Verde" value={tipo} onChange={(e) => setTipo(e.target.value)} />
             </div>
           </div>

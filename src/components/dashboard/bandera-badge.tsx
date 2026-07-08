@@ -5,6 +5,9 @@ import { cn } from '@/lib/utils';
 // (se recicla entre siembras, no es único). Sirve para conectar lo que se ve
 // físicamente en el invernadero con el lote correspondiente en la app.
 export function BanderaBadge({ numero, className }: { numero: number; className?: string }) {
+  // La bandera solo es válida mientras el lote está en mesa de plantines; una
+  // vez traspasado a engorda se libera (numero pasa a 0) y ya no se muestra.
+  if (!numero) return null;
   return (
     <span
       className={cn(

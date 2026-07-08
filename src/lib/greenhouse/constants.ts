@@ -28,6 +28,7 @@ export const DIAS_L = [
 
 export type TabId =
   | 'resumen'
+  | 'tareas'
   | 'registrar'
   | 'mesa'
   | 'bancales'
@@ -40,6 +41,7 @@ export type TabId =
 
 export const TITLES: Record<TabId, string> = {
   resumen: 'Resumen del invernadero',
+  tareas: 'Tareas de hoy',
   registrar: 'Registrar siembra',
   mesa: 'Mesa de plantines',
   bancales: 'Bancales',
