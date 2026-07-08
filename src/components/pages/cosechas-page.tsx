@@ -10,6 +10,7 @@ import {
   filtrarCosechas,
   fracTubosStr,
   resumenCosechasPorVariedad,
+  varLabel,
   PERIODOS_COSECHA,
   type PeriodoCosecha,
 } from '@/lib/greenhouse/helpers';
@@ -22,7 +23,7 @@ export function CosechasPage() {
   const [periodo, setPeriodo] = useState<PeriodoCosecha>('todo');
 
   const variedadItems = useMemo(
-    () => ({ todas: 'Todas', ...Object.fromEntries((state.vars || []).map((v) => [String(v.id), v.nombre])) }),
+    () => ({ todas: 'Todas', ...Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])) }),
     [state.vars]
   );
 
@@ -53,7 +54,7 @@ export function CosechasPage() {
                 <SelectItem value="todas">Todas</SelectItem>
                 {(state.vars || []).map((v) => (
                   <SelectItem key={v.id} value={String(v.id)}>
-                    {v.nombre}
+                    {varLabel(v)}
                   </SelectItem>
                 ))}
               </SelectContent>

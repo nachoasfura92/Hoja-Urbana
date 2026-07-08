@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { addPlanItem, deletePlanItem } from '@/lib/greenhouse/actions';
-import { dd, fd, gv, planVence } from '@/lib/greenhouse/helpers';
+import { dd, fd, gv, planVence, varLabel } from '@/lib/greenhouse/helpers';
 
 const FRECUENCIAS = [
   { value: '1', label: 'Todos los días' },
@@ -37,10 +37,7 @@ export function PlanPage() {
   const [da, setDa] = useState(21);
 
   const variedadItems = useMemo(
-    () =>
-      Object.fromEntries(
-        (state.vars || []).map((v) => [String(v.id), v.marca ? `${v.nombre} — ${v.marca}` : v.nombre])
-      ),
+    () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])),
     [state.vars]
   );
 
@@ -83,8 +80,7 @@ export function PlanPage() {
               <SelectContent>
                 {(state.vars || []).map((v) => (
                   <SelectItem key={v.id} value={String(v.id)}>
-                    {v.nombre}
-                    {v.marca ? ` — ${v.marca}` : ''}
+                    {varLabel(v)}
                   </SelectItem>
                 ))}
               </SelectContent>

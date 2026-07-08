@@ -43,6 +43,12 @@ export function gvColor(vars: Variedad[], id: number): string {
   return COLORS_VAR[i % COLORS_VAR.length];
 }
 
+// Etiqueta combinada "Variedad — Nombre" (v.nombre / v.tipo) para mostrar en
+// cualquier lugar donde se elija o liste una variedad.
+export function varLabel(v: Variedad): string {
+  return v.tipo ? `${v.nombre} — ${v.tipo}` : v.nombre;
+}
+
 export function fracTubosStr(p: number): string {
   const t = p / PT;
   return t === Math.floor(t) ? t.toString() : (Math.round(t * 100) / 100).toString();

@@ -8,7 +8,7 @@ import { MiniProgress } from '@/components/dashboard/mini-progress';
 import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
-import { dd, fd, fracTubosStr, gv, gvColor } from '@/lib/greenhouse/helpers';
+import { dd, fd, fracTubosStr, gv, gvColor, varLabel } from '@/lib/greenhouse/helpers';
 import { cn } from '@/lib/utils';
 import type { Lote } from '@/lib/greenhouse/types';
 
@@ -54,7 +54,7 @@ export function MesaPage() {
             >
               <div className="flex items-center gap-2 text-sm font-medium">
                 <span className="size-1.5 rounded-full" style={{ background: color }} />
-                {v.nombre}
+                {varLabel(v)}
                 {vencidos ? (
                   <Badge variant="outline" className="border-transparent bg-warning/10 text-warning">
                     mover a engorda

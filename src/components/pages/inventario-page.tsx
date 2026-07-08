@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertRow } from '@/components/dashboard/alert-row';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { adjustCubos, adjustSemillas } from '@/lib/greenhouse/actions';
-import { fd, fmas, gv, hoy } from '@/lib/greenhouse/helpers';
+import { fd, fmas, gv, hoy, varLabel } from '@/lib/greenhouse/helpers';
 
 export function InventarioPage() {
   const { state, update } = useGreenhouse();
@@ -20,7 +20,7 @@ export function InventarioPage() {
   const [semQty, setSemQty] = useState('');
 
   const variedadItems = useMemo(
-    () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), v.nombre])),
+    () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])),
     [state.vars]
   );
 
@@ -86,7 +86,7 @@ export function InventarioPage() {
                   <div key={v.id} className="flex items-center justify-between border-b py-1.5 text-sm last:border-b-0">
                     <div>
                       <div className={bajo ? 'font-medium text-destructive' : 'font-medium'}>
-                        {v.nombre}
+                        {varLabel(v)}
                         {bajo ? ' ⚠' : ''}
                       </div>
                       <div className="text-[11px] text-muted-foreground">{v.marca || '—'}</div>
@@ -105,7 +105,7 @@ export function InventarioPage() {
               <SelectContent>
                 {(state.vars || []).map((v) => (
                   <SelectItem key={v.id} value={String(v.id)}>
-                    {v.nombre}
+                    {varLabel(v)}
                   </SelectItem>
                 ))}
               </SelectContent>

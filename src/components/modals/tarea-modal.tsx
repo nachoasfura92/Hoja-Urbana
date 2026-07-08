@@ -13,7 +13,7 @@ import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra, ejecutarMovimiento, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
 import { PT } from '@/lib/greenhouse/constants';
-import { fd, fracTubosStr, getBanc, hoy, plantasEnBanc } from '@/lib/greenhouse/helpers';
+import { banderasEnUso, fd, fracTubosStr, getBanc, hoy, plantasEnBanc } from '@/lib/greenhouse/helpers';
 import { bancalLabel, type TareaHoy } from '@/lib/greenhouse/tareas';
 
 export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose: () => void }) {
@@ -72,9 +72,11 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
 
   const loteActual = tarea.loteId != null ? state.lotes.find((l) => l.id === tarea.loteId) : null;
   const maxCantidad = esSiembra ? undefined : loteActual?.plantasRestantes;
+  const banderaDuplicada = esSiembra && bandera > 0 && banderasEnUso(state.lotes).has(bandera);
 
   function handleConfirmar() {
     if (esSiembra) {
+      if (banderaDuplicada) return;
       const cant = cantidad || tarea!.cantidadSugerida;
       const band = bandera || tarea!.banderaSugerida || 1;
       setResumen({
@@ -212,6 +214,9 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
                   value={bandera}
                   onChange={(e) => setBandera(parseInt(e.target.value, 10) || 0)}
                 />
+                {banderaDuplicada && (
+                  <p className="text-xs text-destructive">Esa bandera ya está en uso en mesa de plantines.</p>
+                )}
               </div>
             )}
             {!esSiembra && (
@@ -237,7 +242,9 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
             <Button variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmar}>Confirmar</Button>
+            <Button onClick={handleConfirmar} disabled={banderaDuplicada}>
+              Confirmar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

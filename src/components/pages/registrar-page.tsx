@@ -12,7 +12,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra } from '@/lib/greenhouse/actions';
-import { evaluarSiembra, fd, fmas, fracTubosStr, gv, hoy, man, sembradoEn } from '@/lib/greenhouse/helpers';
+import {
+  banderasEnUso,
+  evaluarSiembra,
+  fd,
+  fmas,
+  fracTubosStr,
+  gv,
+  hoy,
+  man,
+  proximaBandera,
+  sembradoEn,
+  varLabel,
+} from '@/lib/greenhouse/helpers';
 import { AlertRow } from '@/components/dashboard/alert-row';
 import { DatePicker } from '@/components/dashboard/date-picker';
 import { ValidarSiembraModal } from '@/components/modals/validar-siembra-modal';
@@ -22,8 +34,9 @@ export function RegistrarPage() {
   const { displayName, email } = useCurrentUser();
   const [vId, setVId] = useState('');
   const [fecha, setFecha] = useState(hoy());
-  const [plantas, setPlantas] = useState(20);
+  const [plantas, setPlantas] = useState<number | ''>('');
   const [bandera, setBandera] = useState<number | ''>('');
+  const [banderaTocada, setBanderaTocada] = useState(false);
   const [dp, setDp] = useState(14);
   const [de, setDe] = useState(21);
   const [da, setDa] = useState(21);
@@ -32,23 +45,31 @@ export function RegistrarPage() {
   const formRef = useRef<HTMLDivElement>(null);
 
   const variedadItems = useMemo(
-    () =>
-      Object.fromEntries(
-        (state.vars || []).map((v) => [String(v.id), v.marca ? `${v.nombre} — ${v.marca}` : v.nombre])
-      ),
+    () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])),
     [state.vars]
   );
 
   const vIdNum = vId ? parseInt(vId, 10) : null;
   const evaluacion = useMemo(
-    () => (vIdNum ? evaluarSiembra(state, vIdNum, plantas) : null),
+    () => (vIdNum ? evaluarSiembra(state, vIdNum, plantas || 0) : null),
     [state, vIdNum, plantas]
   );
+
+  // Sugiere automáticamente la siguiente bandera libre (la más baja posible,
+  // reciclando las que se liberan al salir de mesa de plantines) mientras el
+  // operador no la haya editado a mano.
+  const banderaSugerida = useMemo(() => proximaBandera(state.lotes), [state.lotes]);
+  const [ultimaSugerida, setUltimaSugerida] = useState<number | null>(null);
+  if (!banderaTocada && banderaSugerida !== ultimaSugerida) {
+    setUltimaSugerida(banderaSugerida);
+    setBandera(banderaSugerida);
+  }
+  const banderaDuplicada = bandera !== '' && banderasEnUso(state.lotes).has(bandera);
 
   function precargar(varId: number, cantidad: number, dpv: number, dev: number, dav: number) {
     setVId(String(varId));
     setPlantas(cantidad);
-    setBandera('');
+    setBanderaTocada(false);
     setDp(dpv);
     setDe(dev);
     setDa(dav);
@@ -57,7 +78,7 @@ export function RegistrarPage() {
   }
 
   function handleRegistrar() {
-    if (!vIdNum || !plantas || !bandera) return;
+    if (!vIdNum || !plantas || !bandera || banderaDuplicada) return;
     setModalOpen(true);
   }
 
@@ -67,7 +88,7 @@ export function RegistrarPage() {
       confirmarSiembra(draft, {
         vId: vIdNum,
         varNombre: gv(draft.vars, vIdNum).nombre,
-        plantas,
+        plantas: plantas || 0,
         fechaSiembra: fecha,
         dp,
         de,
@@ -79,7 +100,8 @@ export function RegistrarPage() {
     });
     setModalOpen(false);
     setNotas('');
-    setBandera('');
+    setPlantas('');
+    setBanderaTocada(false);
   }
 
   const bloques = [
@@ -194,8 +216,7 @@ export function RegistrarPage() {
               <SelectContent>
                 {(state.vars || []).map((v) => (
                   <SelectItem key={v.id} value={String(v.id)}>
-                    {v.nombre}
-                    {v.marca ? ` — ${v.marca}` : ''}
+                    {varLabel(v)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -211,8 +232,9 @@ export function RegistrarPage() {
               <Input
                 type="number"
                 min={1}
+                placeholder="Ej: 500"
                 value={plantas}
-                onChange={(e) => setPlantas(parseInt(e.target.value, 10) || 0)}
+                onChange={(e) => setPlantas(e.target.value ? parseInt(e.target.value, 10) : '')}
               />
             </div>
             <div className="grid gap-1.5">
@@ -225,12 +247,18 @@ export function RegistrarPage() {
                 min={1}
                 placeholder="Ej: 4"
                 value={bandera}
-                onChange={(e) => setBandera(e.target.value ? parseInt(e.target.value, 10) : '')}
+                onChange={(e) => {
+                  setBanderaTocada(true);
+                  setBandera(e.target.value ? parseInt(e.target.value, 10) : '');
+                }}
               />
+              {banderaDuplicada && (
+                <p className="text-xs text-destructive">Esa bandera ya está en uso en mesa de plantines.</p>
+              )}
             </div>
           </div>
 
-          {evaluacion && plantas > 0 && evaluacion.plan && (
+          {evaluacion && (plantas || 0) > 0 && evaluacion.plan && (
             <>
               {evaluacion.total < evaluacion.plan.plantas && (
                 <AlertRow kind="warning" icon={AlertTriangle}>
@@ -249,8 +277,8 @@ export function RegistrarPage() {
               )}
             </>
           )}
-          {plantas > 0 && (
-            <p className="text-xs text-muted-foreground">{fracTubosStr(plantas)} tubos equivalentes</p>
+          {(plantas || 0) > 0 && (
+            <p className="text-xs text-muted-foreground">{fracTubosStr(plantas || 0)} tubos equivalentes</p>
           )}
 
           <div className="grid grid-cols-3 gap-3">
@@ -272,7 +300,7 @@ export function RegistrarPage() {
             <Textarea rows={2} placeholder="Observaciones..." value={notas} onChange={(e) => setNotas(e.target.value)} />
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleRegistrar} disabled={!vIdNum || !plantas || !bandera}>
+            <Button onClick={handleRegistrar} disabled={!vIdNum || !plantas || !bandera || banderaDuplicada}>
               Registrar siembra
             </Button>
           </div>
@@ -283,7 +311,7 @@ export function RegistrarPage() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         evaluacion={evaluacion}
-        plantas={plantas}
+        plantas={plantas || 0}
         bandera={bandera || 0}
         fechaSiembra={fecha}
         onConfirm={handleConfirmar}

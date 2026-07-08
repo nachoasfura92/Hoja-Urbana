@@ -11,7 +11,7 @@ import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { EtapaBadge } from '@/components/dashboard/etapa-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
-import { buscarLotes, dd, dr, fracTubosStr } from '@/lib/greenhouse/helpers';
+import { buscarLotes, dd, dr, fracTubosStr, varLabel } from '@/lib/greenhouse/helpers';
 
 function formatBancal(bancalId: string | null): string {
   if (!bancalId) return 'Sin bancal asignado';
@@ -29,7 +29,7 @@ export function SearchLotes() {
   const [diasCosechaMax, setDiasCosechaMax] = useState('');
 
   const variedadItems = useMemo(
-    () => ({ todas: 'Todas', ...Object.fromEntries((state.vars || []).map((v) => [String(v.id), v.nombre])) }),
+    () => ({ todas: 'Todas', ...Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])) }),
     [state.vars]
   );
 
@@ -94,7 +94,7 @@ export function SearchLotes() {
                     <SelectItem value="todas">Todas</SelectItem>
                     {(state.vars || []).map((v) => (
                       <SelectItem key={v.id} value={String(v.id)}>
-                        {v.nombre}
+                        {varLabel(v)}
                       </SelectItem>
                     ))}
                   </SelectContent>
