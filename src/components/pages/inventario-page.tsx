@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertRow } from '@/components/dashboard/alert-row';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { adjustCubos, adjustSemillas } from '@/lib/greenhouse/actions';
-import { fd, fmas, gv, hoy, varLabel } from '@/lib/greenhouse/helpers';
+import { consumoRealPorDia, fd, fmas, gv, hoy, varLabel } from '@/lib/greenhouse/helpers';
 import { cn } from '@/lib/utils';
 
 export function InventarioPage() {
@@ -45,20 +45,21 @@ export function InventarioPage() {
 
   const plan = state.plan || [];
   const cStock = state.inventario.cubos || 0;
-  const cxd = plan.reduce((t, p) => t + p.plantas / p.freq, 0);
+  // Consumo real (según siembras ya registradas), no el promedio teórico del plan.
+  const cxd = consumoRealPorDia(state.lotes);
 
   const selectedPlan = selectedVarId != null ? plan.find((p) => p.varId === selectedVarId) || null : null;
   const chartData = useMemo(() => {
     if (!selectedPlan) return [];
     const sem = (state.inventario.semillas || {})[String(selectedPlan.varId)] || 0;
-    const xd = selectedPlan.plantas / selectedPlan.freq;
+    const xd = consumoRealPorDia(state.lotes, selectedPlan.varId);
     const dias = xd > 0 ? Math.min(90, Math.ceil(sem / xd) + 2) : 14;
     return Array.from({ length: dias + 1 }, (_, i) => {
       const f = fmas(hoy(), i);
       const d = new Date(f);
       return { label: `${d.getDate()}/${d.getMonth() + 1}`, stock: Math.max(0, Math.round(sem - xd * i)) };
     });
-  }, [selectedPlan, state.inventario.semillas]);
+  }, [selectedPlan, state.inventario.semillas, state.lotes]);
 
   return (
     <div className="grid gap-4">
@@ -156,7 +157,7 @@ export function InventarioPage() {
                 const fa = fmas(hoy(), dc);
                 return (
                   <AlertRow kind={dc <= 14 ? 'warning' : 'success'} icon={Box}>
-                    <strong>Cubos</strong> — {cStock} en stock · {cxd.toFixed(1)}/día
+                    <strong>Cubos</strong> — {cStock} en stock · {cxd.toFixed(1)}/día (real)
                     <br />
                     {dc <= 0 ? (
                       <strong>Agotados</strong>
@@ -170,9 +171,9 @@ export function InventarioPage() {
               })()}
             {plan.map((p) => {
               const sem = (state.inventario.semillas || {})[String(p.varId)] || 0;
-              const xd = p.plantas / p.freq;
-              const d = Math.floor(sem / xd);
-              const fa = fmas(hoy(), d);
+              const xd = consumoRealPorDia(state.lotes, p.varId);
+              const d = xd > 0 ? Math.floor(sem / xd) : null;
+              const fa = d != null ? fmas(hoy(), d) : null;
               const seleccionado = selectedVarId === p.varId;
               return (
                 <button
@@ -184,14 +185,16 @@ export function InventarioPage() {
                     seleccionado && 'ring-2 ring-primary'
                   )}
                 >
-                  <AlertRow kind={d <= 14 ? 'warning' : 'success'} icon={LeafyGreen}>
-                    <strong>{p.varNom}</strong> — {sem} semillas · {xd.toFixed(1)}/día
+                  <AlertRow kind={d == null ? 'info' : d <= 14 ? 'warning' : 'success'} icon={LeafyGreen}>
+                    <strong>{p.varNom}</strong> — {sem} semillas · {xd.toFixed(1)}/día (real)
                     <br />
-                    {d <= 0 ? (
+                    {d == null ? (
+                      'Sin historial de siembra — no se puede proyectar'
+                    ) : d <= 0 ? (
                       <strong>Agotadas</strong>
                     ) : (
                       <>
-                        Se agotan en <strong>{d} días</strong> ({fd(fa)})
+                        Se agotan en <strong>{d} días</strong> ({fd(fa!)})
                       </>
                     )}
                   </AlertRow>

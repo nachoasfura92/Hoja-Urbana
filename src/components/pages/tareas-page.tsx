@@ -1,10 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowRightLeft, CheckCircle2, ClipboardCheck, Flag, Pencil, Sprout } from 'lucide-react';
+import { ArrowRightLeft, CheckCircle2, ChevronDown, ClipboardCheck, Flag, Pencil, Sprout } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TareaModal } from '@/components/modals/tarea-modal';
 import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals/resumen-registro-dialog';
@@ -14,6 +14,7 @@ import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra, ejecutarMovimiento } from '@/lib/greenhouse/actions';
 import { fd, fracTubosStr, hoy } from '@/lib/greenhouse/helpers';
 import { bancalLabel, calcularTareasHoy, type TareaHoy } from '@/lib/greenhouse/tareas';
+import { cn } from '@/lib/utils';
 
 type FiltroTipo = 'todas' | 'siembra' | 'trasplante';
 
@@ -140,21 +141,21 @@ export function TareasPage() {
     <>
       <div className="grid gap-4 lg:grid-cols-3">
         <TareasBox
-          titulo="Tareas pendientes"
-          tareas={filtrarPorTipo(tareasPendientes, filtroPendientes)}
-          total={tareasPendientes.length}
-          filtro={filtroPendientes}
-          onFiltro={setFiltroPendientes}
-          onCompletar={completar}
-          onEditar={setEditando}
-          onVerLote={openLote}
-        />
-        <TareasBox
           titulo="Tareas de hoy"
           tareas={filtrarPorTipo(tareasHoy, filtroHoy)}
           total={tareasHoy.length}
           filtro={filtroHoy}
           onFiltro={setFiltroHoy}
+          onCompletar={completar}
+          onEditar={setEditando}
+          onVerLote={openLote}
+        />
+        <TareasBox
+          titulo="Tareas pendientes"
+          tareas={filtrarPorTipo(tareasPendientes, filtroPendientes)}
+          total={tareasPendientes.length}
+          filtro={filtroPendientes}
+          onFiltro={setFiltroPendientes}
           onCompletar={completar}
           onEditar={setEditando}
           onVerLote={openLote}
@@ -195,13 +196,20 @@ function TareasBox({
   onEditar: (t: TareaHoy) => void;
   onVerLote: (id: number) => void;
 }) {
+  const [open, setOpen] = useState(true);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-sm font-medium">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-1.5 text-sm font-medium"
+        >
+          <ChevronDown className={cn('size-4 text-muted-foreground transition-transform', !open && '-rotate-90')} />
           {titulo}
-          {total > 0 && <span className="ml-1.5 text-xs font-normal text-muted-foreground">({total})</span>}
-        </CardTitle>
+          {total > 0 && <span className="text-xs font-normal text-muted-foreground">({total})</span>}
+        </button>
         <Select value={filtro} onValueChange={(v) => onFiltro((v as FiltroTipo) ?? 'todas')} items={FILTRO_ITEMS}>
           <SelectTrigger className="h-7 w-36 text-xs">
             <SelectValue />
@@ -213,18 +221,20 @@ function TareasBox({
           </SelectContent>
         </Select>
       </CardHeader>
-      <CardContent className="grid gap-2">
-        {tareas.length ? (
-          tareas.map((t) => (
-            <TareaCard key={t.id} tarea={t} onCompletar={onCompletar} onEditar={onEditar} onVerLote={onVerLote} />
-          ))
-        ) : (
-          <div className="flex flex-col items-center gap-1.5 py-8 text-center">
-            <CheckCircle2 className="size-6 text-success" />
-            <p className="text-sm text-muted-foreground">Sin tareas.</p>
-          </div>
-        )}
-      </CardContent>
+      {open && (
+        <CardContent className="grid gap-2">
+          {tareas.length ? (
+            tareas.map((t) => (
+              <TareaCard key={t.id} tarea={t} onCompletar={onCompletar} onEditar={onEditar} onVerLote={onVerLote} />
+            ))
+          ) : (
+            <div className="flex flex-col items-center gap-1.5 py-8 text-center">
+              <CheckCircle2 className="size-6 text-success" />
+              <p className="text-sm text-muted-foreground">Sin tareas.</p>
+            </div>
+          )}
+        </CardContent>
+      )}
     </Card>
   );
 }
