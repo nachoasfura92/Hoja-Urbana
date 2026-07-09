@@ -45,14 +45,20 @@ export function InventarioPage() {
 
   const plan = state.plan || [];
   const cStock = state.inventario.cubos || 0;
-  // Consumo real (según siembras ya registradas), no el promedio teórico del plan.
-  const cxd = consumoRealPorDia(state.lotes);
+  // Preferimos el consumo real (según siembras ya registradas); mientras no
+  // haya suficiente historial (menos de 2 siembras reales) usamos el
+  // promedio del plan como respaldo, dejando claro cuál se está mostrando.
+  const cxdReal = consumoRealPorDia(state.lotes);
+  const cxdPlan = plan.reduce((t, p) => t + p.plantas / p.freq, 0);
+  const cxd = cxdReal > 0 ? cxdReal : cxdPlan;
+  const cxdEsReal = cxdReal > 0;
 
   const selectedPlan = selectedVarId != null ? plan.find((p) => p.varId === selectedVarId) || null : null;
   const chartData = useMemo(() => {
     if (!selectedPlan) return [];
     const sem = (state.inventario.semillas || {})[String(selectedPlan.varId)] || 0;
-    const xd = consumoRealPorDia(state.lotes, selectedPlan.varId);
+    const xdReal = consumoRealPorDia(state.lotes, selectedPlan.varId);
+    const xd = xdReal > 0 ? xdReal : selectedPlan.plantas / selectedPlan.freq;
     const dias = xd > 0 ? Math.min(90, Math.ceil(sem / xd) + 2) : 14;
     return Array.from({ length: dias + 1 }, (_, i) => {
       const f = fmas(hoy(), i);
@@ -157,7 +163,8 @@ export function InventarioPage() {
                 const fa = fmas(hoy(), dc);
                 return (
                   <AlertRow kind={dc <= 14 ? 'warning' : 'success'} icon={Box}>
-                    <strong>Cubos</strong> — {cStock} en stock · {cxd.toFixed(1)}/día (real)
+                    <strong>Cubos</strong> — {cStock} en stock · {cxd.toFixed(1)}/día{' '}
+                    {cxdEsReal ? '(real)' : '(estimado del plan — poco historial real aún)'}
                     <br />
                     {dc <= 0 ? (
                       <strong>Agotados</strong>
@@ -171,9 +178,11 @@ export function InventarioPage() {
               })()}
             {plan.map((p) => {
               const sem = (state.inventario.semillas || {})[String(p.varId)] || 0;
-              const xd = consumoRealPorDia(state.lotes, p.varId);
-              const d = xd > 0 ? Math.floor(sem / xd) : null;
-              const fa = d != null ? fmas(hoy(), d) : null;
+              const xdReal = consumoRealPorDia(state.lotes, p.varId);
+              const xd = xdReal > 0 ? xdReal : p.plantas / p.freq;
+              const esReal = xdReal > 0;
+              const d = Math.floor(sem / xd);
+              const fa = fmas(hoy(), d);
               const seleccionado = selectedVarId === p.varId;
               return (
                 <button
@@ -185,16 +194,15 @@ export function InventarioPage() {
                     seleccionado && 'ring-2 ring-primary'
                   )}
                 >
-                  <AlertRow kind={d == null ? 'info' : d <= 14 ? 'warning' : 'success'} icon={LeafyGreen}>
-                    <strong>{p.varNom}</strong> — {sem} semillas · {xd.toFixed(1)}/día (real)
+                  <AlertRow kind={d <= 14 ? 'warning' : 'success'} icon={LeafyGreen}>
+                    <strong>{p.varNom}</strong> — {sem} semillas · {xd.toFixed(1)}/día{' '}
+                    {esReal ? '(real)' : '(estimado del plan — poco historial real aún)'}
                     <br />
-                    {d == null ? (
-                      'Sin historial de siembra — no se puede proyectar'
-                    ) : d <= 0 ? (
+                    {d <= 0 ? (
                       <strong>Agotadas</strong>
                     ) : (
                       <>
-                        Se agotan en <strong>{d} días</strong> ({fd(fa!)})
+                        Se agotan en <strong>{d} días</strong> ({fd(fa)})
                       </>
                     )}
                   </AlertRow>

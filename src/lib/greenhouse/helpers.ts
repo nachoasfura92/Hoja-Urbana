@@ -104,10 +104,14 @@ export function sembradoEn(lotes: Lote[], vId: number, f: string): number {
 // Consumo real diario de semillas/cubos, NO un promedio teórico del plan
 // (plantas/frecuencia): se calcula desde las siembras reales ya registradas,
 // entre la primera y hoy. Si `varId` se omite, suma todas las variedades
-// (para proyectar el consumo de cubos). Sin historial de siembra, da 0.
+// (para proyectar el consumo de cubos).
+// Necesita al menos 2 siembras reales para ser representativo: con una sola
+// (p. ej. recién reiniciados los datos), "total/días desde esa única siembra"
+// da un número ruidoso y poco fiable. Con menos de 2, devuelve 0 para que el
+// llamador use un respaldo (el promedio del plan) hasta acumular más historial.
 export function consumoRealPorDia(lotes: Lote[], varId?: number): number {
   const historial = (lotes || []).filter((l) => varId == null || l.varId === varId);
-  if (!historial.length) return 0;
+  if (historial.length < 2) return 0;
   const totalPlantas = historial.reduce((t, l) => t + l.plantas, 0);
   const primera = Math.min(...historial.map((l) => new Date(l.fechaInicio).getTime()));
   const dias = Math.max(1, Math.round((Date.now() - primera) / 86400000));
