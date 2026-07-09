@@ -12,8 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertRow } from '@/components/dashboard/alert-row';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { adjustCubos, adjustSemillas } from '@/lib/greenhouse/actions';
-import { consumoRealPorDia, fd, fmas, gv, hoy, varLabel } from '@/lib/greenhouse/helpers';
+import { diasHastaCero, fd, fmas, gv, hoy, serieAgotamiento, serieAgotamientoCubos, varLabel } from '@/lib/greenhouse/helpers';
 import { cn } from '@/lib/utils';
+
+const VENTANA_DIAS = 90;
 
 export function InventarioPage() {
   const { state, update } = useGreenhouse();
@@ -21,6 +23,7 @@ export function InventarioPage() {
   const [semVarId, setSemVarId] = useState('');
   const [semQty, setSemQty] = useState('');
   const [selectedVarId, setSelectedVarId] = useState<number | null>(null);
+  const [cubosSeleccionado, setCubosSeleccionado] = useState(false);
 
   const variedadItems = useMemo(
     () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])),
@@ -43,29 +46,28 @@ export function InventarioPage() {
     setSemQty('');
   }
 
-  const plan = state.plan || [];
+  const plan = useMemo(() => state.plan || [], [state.plan]);
   const cStock = state.inventario.cubos || 0;
-  // Preferimos el consumo real (según siembras ya registradas); mientras no
-  // haya suficiente historial (menos de 2 siembras reales) usamos el
-  // promedio del plan como respaldo, dejando claro cuál se está mostrando.
-  const cxdReal = consumoRealPorDia(state.lotes);
-  const cxdPlan = plan.reduce((t, p) => t + p.plantas / p.freq, 0);
-  const cxd = cxdReal > 0 ? cxdReal : cxdPlan;
-  const cxdEsReal = cxdReal > 0;
+
+  const cubosSerie = useMemo(() => serieAgotamientoCubos(cStock, plan, VENTANA_DIAS), [cStock, plan]);
+  const cubosDias = diasHastaCero(cubosSerie);
 
   const selectedPlan = selectedVarId != null ? plan.find((p) => p.varId === selectedVarId) || null : null;
   const chartData = useMemo(() => {
     if (!selectedPlan) return [];
     const sem = (state.inventario.semillas || {})[String(selectedPlan.varId)] || 0;
-    const xdReal = consumoRealPorDia(state.lotes, selectedPlan.varId);
-    const xd = xdReal > 0 ? xdReal : selectedPlan.plantas / selectedPlan.freq;
-    const dias = xd > 0 ? Math.min(90, Math.ceil(sem / xd) + 2) : 14;
-    return Array.from({ length: dias + 1 }, (_, i) => {
-      const f = fmas(hoy(), i);
-      const d = new Date(f);
-      return { label: `${d.getDate()}/${d.getMonth() + 1}`, stock: Math.max(0, Math.round(sem - xd * i)) };
-    });
-  }, [selectedPlan, state.inventario.semillas, state.lotes]);
+    return serieAgotamiento(sem, selectedPlan, VENTANA_DIAS);
+  }, [selectedPlan, state.inventario.semillas]);
+
+  function seleccionarCubos() {
+    setCubosSeleccionado((s) => !s);
+    setSelectedVarId(null);
+  }
+
+  function seleccionarVariedad(varId: number) {
+    setSelectedVarId((v) => (v === varId ? null : varId));
+    setCubosSeleccionado(false);
+  }
 
   return (
     <div className="grid gap-4">
@@ -157,52 +159,48 @@ export function InventarioPage() {
           <p className="text-sm text-muted-foreground">Define el plan para ver proyecciones.</p>
         ) : (
           <div className="grid gap-2">
-            {cxd > 0 &&
-              (() => {
-                const dc = Math.floor(cStock / cxd);
-                const fa = fmas(hoy(), dc);
-                return (
-                  <AlertRow kind={dc <= 14 ? 'warning' : 'success'} icon={Box}>
-                    <strong>Cubos</strong> — {cStock} en stock · {cxd.toFixed(1)}/día{' '}
-                    {cxdEsReal ? '(real)' : '(estimado del plan — poco historial real aún)'}
-                    <br />
-                    {dc <= 0 ? (
-                      <strong>Agotados</strong>
-                    ) : (
-                      <>
-                        Se agotan en <strong>{dc} días</strong> ({fd(fa)})
-                      </>
-                    )}
-                  </AlertRow>
-                );
-              })()}
+            <button
+              type="button"
+              onClick={seleccionarCubos}
+              className={cn('rounded-md text-left transition-shadow', cubosSeleccionado && 'ring-2 ring-primary')}
+            >
+              <AlertRow kind={cubosDias != null && cubosDias <= 14 ? 'warning' : 'success'} icon={Box}>
+                <strong>Cubos</strong> — {cStock} en stock
+                <br />
+                {cubosDias == null ? (
+                  <>No se agotan dentro de los próximos {VENTANA_DIAS} días</>
+                ) : cubosDias <= 0 ? (
+                  <strong>Agotados</strong>
+                ) : (
+                  <>
+                    Se agotan en <strong>{cubosDias} días</strong> ({fd(fmas(hoy(), cubosDias))})
+                  </>
+                )}
+              </AlertRow>
+            </button>
             {plan.map((p) => {
               const sem = (state.inventario.semillas || {})[String(p.varId)] || 0;
-              const xdReal = consumoRealPorDia(state.lotes, p.varId);
-              const xd = xdReal > 0 ? xdReal : p.plantas / p.freq;
-              const esReal = xdReal > 0;
-              const d = Math.floor(sem / xd);
-              const fa = fmas(hoy(), d);
+              const serie = serieAgotamiento(sem, p, VENTANA_DIAS);
+              const d = diasHastaCero(serie);
               const seleccionado = selectedVarId === p.varId;
               return (
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setSelectedVarId(seleccionado ? null : p.varId)}
-                  className={cn(
-                    'rounded-md text-left transition-shadow',
-                    seleccionado && 'ring-2 ring-primary'
-                  )}
+                  onClick={() => seleccionarVariedad(p.varId)}
+                  className={cn('rounded-md text-left transition-shadow', seleccionado && 'ring-2 ring-primary')}
                 >
-                  <AlertRow kind={d <= 14 ? 'warning' : 'success'} icon={LeafyGreen}>
-                    <strong>{p.varNom}</strong> — {sem} semillas · {xd.toFixed(1)}/día{' '}
-                    {esReal ? '(real)' : '(estimado del plan — poco historial real aún)'}
+                  <AlertRow kind={d != null && d <= 14 ? 'warning' : 'success'} icon={LeafyGreen}>
+                    <strong>{p.varNom}</strong> — {sem} semillas · plan: {p.plantas} cada{' '}
+                    {p.freq === 1 ? 'día' : `${p.freq} días`}
                     <br />
-                    {d <= 0 ? (
+                    {d == null ? (
+                      <>No se agotan dentro de los próximos {VENTANA_DIAS} días</>
+                    ) : d <= 0 ? (
                       <strong>Agotadas</strong>
                     ) : (
                       <>
-                        Se agotan en <strong>{d} días</strong> ({fd(fa)})
+                        Se agotan en <strong>{d} días</strong> ({fd(fmas(hoy(), d))})
                       </>
                     )}
                   </AlertRow>
@@ -212,6 +210,39 @@ export function InventarioPage() {
           </div>
         )}
       </div>
+
+      {cubosSeleccionado && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
+              <LineChartIcon className="size-4 text-muted-foreground" />
+              Proyección de stock — Cubos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={cubosSerie}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={36} />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'var(--popover)',
+                      color: 'var(--popover-foreground)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    formatter={(value) => [`${value} cubos`, 'Stock']}
+                  />
+                  <Line type="stepAfter" dataKey="stock" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {selectedPlan && (
         <Card>
@@ -238,7 +269,7 @@ export function InventarioPage() {
                     }}
                     formatter={(value) => [`${value} semillas`, 'Stock']}
                   />
-                  <Line type="monotone" dataKey="stock" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                  <Line type="stepAfter" dataKey="stock" stroke="var(--primary)" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

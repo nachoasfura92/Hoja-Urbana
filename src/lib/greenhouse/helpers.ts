@@ -101,21 +101,85 @@ export function sembradoEn(lotes: Lote[], vId: number, f: string): number {
     .reduce((t, l) => t + l.plantas, 0);
 }
 
-// Consumo real diario de semillas/cubos, NO un promedio teórico del plan
-// (plantas/frecuencia): se calcula desde las siembras reales ya registradas,
-// entre la primera y hoy. Si `varId` se omite, suma todas las variedades
-// (para proyectar el consumo de cubos).
-// Necesita al menos 2 siembras reales para ser representativo: con una sola
-// (p. ej. recién reiniciados los datos), "total/días desde esa única siembra"
-// da un número ruidoso y poco fiable. Con menos de 2, devuelve 0 para que el
-// llamador use un respaldo (el promedio del plan) hasta acumular más historial.
-export function consumoRealPorDia(lotes: Lote[], varId?: number): number {
-  const historial = (lotes || []).filter((l) => varId == null || l.varId === varId);
-  if (historial.length < 2) return 0;
-  const totalPlantas = historial.reduce((t, l) => t + l.plantas, 0);
-  const primera = Math.min(...historial.map((l) => new Date(l.fechaInicio).getTime()));
-  const dias = Math.max(1, Math.round((Date.now() - primera) / 86400000));
-  return totalPlantas / dias;
+// Serie día a día (escalón) de un stock de semillas, simulando las siembras
+// que el plan indica hacer (cada `freq` días, descontando `plantas` en cada
+// una) en vez de un promedio diario. "Próxima siembra" usa el mismo criterio
+// que el resto de la app: ultimaSiembra + freq, u hoy si nunca se sembró; si
+// está vencida, la simulación arranca desde hoy en vez de "deber" siembras
+// pasadas que nunca se hicieron.
+export interface SeriePunto {
+  label: string;
+  stock: number;
+}
+
+export function serieAgotamiento(
+  stock0: number,
+  plan: { freq: number; plantas: number; ultimaSiembra: string | null },
+  diasVentana: number
+): SeriePunto[] {
+  let proxima = plan.ultimaSiembra ? fmas(plan.ultimaSiembra, plan.freq) : hoy();
+  if (dr(proxima) < 0) proxima = hoy();
+  const eventos = new Map<number, number>();
+  let stock = stock0;
+  let guard = 0;
+  while (guard < 5000 && stock > 0) {
+    const offset = dr(proxima);
+    if (offset > diasVentana) break;
+    stock = Math.max(0, stock - plan.plantas);
+    eventos.set(offset, stock);
+    proxima = fmas(proxima, plan.freq);
+    guard++;
+  }
+  let actual = stock0;
+  return Array.from({ length: diasVentana + 1 }, (_, i) => {
+    if (eventos.has(i)) actual = eventos.get(i)!;
+    const f = fmas(hoy(), i);
+    const d = new Date(f);
+    return { label: `${d.getDate()}/${d.getMonth() + 1}`, stock: actual };
+  });
+}
+
+// Igual, pero para el stock compartido de cubos: simula las siembras
+// programadas de TODAS las variedades del plan en orden cronológico y
+// descuenta de un único stock común.
+export function serieAgotamientoCubos(stock0: number, plan: PlanItem[], diasVentana: number): SeriePunto[] {
+  const eventos = new Map<number, number>();
+  if (plan.length) {
+    const agenda = plan.map((p) => {
+      let proxima = p.ultimaSiembra ? fmas(p.ultimaSiembra, p.freq) : hoy();
+      if (dr(proxima) < 0) proxima = hoy();
+      return { plantas: p.plantas, freq: p.freq, proxima };
+    });
+    let stock = stock0;
+    let guard = 0;
+    while (guard < 20000 && stock > 0) {
+      let idx = 0;
+      for (let i = 1; i < agenda.length; i++) {
+        if (agenda[i].proxima < agenda[idx].proxima) idx = i;
+      }
+      const item = agenda[idx];
+      const offset = dr(item.proxima);
+      if (offset > diasVentana) break;
+      stock = Math.max(0, stock - item.plantas);
+      eventos.set(offset, stock);
+      item.proxima = fmas(item.proxima, item.freq);
+      guard++;
+    }
+  }
+  let actual = stock0;
+  return Array.from({ length: diasVentana + 1 }, (_, i) => {
+    if (eventos.has(i)) actual = eventos.get(i)!;
+    const f = fmas(hoy(), i);
+    const d = new Date(f);
+    return { label: `${d.getDate()}/${d.getMonth() + 1}`, stock: actual };
+  });
+}
+
+// Primer día (offset desde hoy) en que una serie llega a 0; null si no se
+// agota dentro de la ventana simulada.
+export function diasHastaCero(serie: SeriePunto[]): number | null {
+  const idx = serie.findIndex((p) => p.stock <= 0);
+  return idx === -1 ? null : idx;
 }
 
 export function planHoy(plan: PlanItem[], vId: number): PlanItem | null {
