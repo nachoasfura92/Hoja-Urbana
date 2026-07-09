@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LayoutGrid } from 'lucide-react';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
-import { dr, fmas, fracTubosStr, getBanc, plantasEnBanc } from '@/lib/greenhouse/helpers';
+import { capacidadTubos, dr, fmas, fracTubosStr, getBanc, plantasEnBanc } from '@/lib/greenhouse/helpers';
 import { cn } from '@/lib/utils';
 import type { TipoBancal } from '@/lib/greenhouse/modals-context';
 
@@ -36,7 +36,7 @@ function BancalCell({ tipo, num }: BancalRef) {
   const { openBancal } = useModals();
   const k = `${tipo}_${num}`;
   const prefix = tipo === 'eng' ? 'E' : 'A';
-  const capacidad = tipo === 'eng' ? 20 : 10;
+  const capacidad = capacidadTubos(k);
   const etapaBuscada = tipo === 'eng' ? 'engorda' : 'adulto';
 
   const uP = plantasEnBanc(state.bancales, k);

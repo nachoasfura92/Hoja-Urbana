@@ -6,8 +6,8 @@ import { MiniProgress } from '@/components/dashboard/mini-progress';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { limpiarBancal } from '@/lib/greenhouse/actions';
-import { COLORS_VAR, PT } from '@/lib/greenhouse/constants';
-import { dd, dr, fd, fracTubosStr, getBanc, plantasEnBanc } from '@/lib/greenhouse/helpers';
+import { COLORS_VAR } from '@/lib/greenhouse/constants';
+import { capacidadTubos, dd, dr, fd, fracTubosStr, getBanc, maxPlantas, plantasEnBanc } from '@/lib/greenhouse/helpers';
 
 export function BancalModal() {
   const { state, update } = useGreenhouse();
@@ -20,8 +20,8 @@ export function BancalModal() {
   const { tipo, num } = bancal;
   const k = `${tipo}_${num}`;
   const tL = tipo === 'eng' ? 'Engorda' : 'Adulto';
-  const maxP = tipo === 'eng' ? 20 * PT : 10 * PT;
-  const maxTub = tipo === 'eng' ? 20 : 10;
+  const maxTub = capacidadTubos(k);
+  const maxP = maxPlantas(k);
   const usP = plantasEnBanc(state.bancales, k);
   const libP = maxP - usP;
   const slots = getBanc(state.bancales, k);

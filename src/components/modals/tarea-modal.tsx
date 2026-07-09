@@ -12,8 +12,7 @@ import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra, ejecutarMovimiento, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
-import { PT } from '@/lib/greenhouse/constants';
-import { banderasEnUso, fd, fracTubosStr, getBanc, hoy, plantasEnBanc } from '@/lib/greenhouse/helpers';
+import { banderasEnUso, fd, fracTubosStr, getBanc, hoy, maxPlantas, plantasEnBanc } from '@/lib/greenhouse/helpers';
 import { bancalLabel, type TareaHoy } from '@/lib/greenhouse/tareas';
 
 export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose: () => void }) {
@@ -44,7 +43,6 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
   const esSiembra = tarea?.tipo === 'sembrar';
   const tipoBancal = tarea?.tipo === 'traspaso_engorda' ? 'eng' : 'adu';
   const maxBanc = tipoBancal === 'eng' ? 9 : 16;
-  const maxP = tipoBancal === 'eng' ? 20 * PT : 10 * PT;
 
   const opciones = useMemo(() => {
     if (!tarea || esSiembra) return [];
@@ -52,7 +50,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
       const i = idx + 1;
       const k = `${tipoBancal}_${i}`;
       const usP = plantasEnBanc(state.bancales, k);
-      const libP = maxP - usP;
+      const libP = maxPlantas(k) - usP;
       const slots = getBanc(state.bancales, k);
       const detalle = slots.length ? slots.map((s) => `${s.varNom}×${s.plantas}pl`).join(', ') : 'vacío';
       return {
@@ -62,7 +60,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
         disabled: libP <= 0,
       };
     });
-  }, [tarea, esSiembra, tipoBancal, maxBanc, maxP, state.bancales]);
+  }, [tarea, esSiembra, tipoBancal, maxBanc, state.bancales]);
 
   const bancalItems = useMemo(() => Object.fromEntries(opciones.map((o) => [o.key, o.label])), [opciones]);
 
@@ -116,7 +114,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
       return;
     }
     const plantasM = Math.min(cantidad || loteActual.plantasRestantes, loteActual.plantasRestantes);
-    const libP = maxP - plantasEnBanc(state.bancales, bancKey);
+    const libP = maxPlantas(bancKey) - plantasEnBanc(state.bancales, bancKey);
     if (plantasM > libP) {
       alert(`Solo hay espacio para ${libP} plantas en ese bancal.`);
       return;

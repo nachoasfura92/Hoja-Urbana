@@ -54,11 +54,13 @@ export function TareasPage() {
   const autor = displayName || email || undefined;
   const [editando, setEditando] = useState<TareaHoy | null>(null);
   const [resumen, setResumen] = useState<ResumenRegistro | null>(null);
+  const [filtroPendientes, setFiltroPendientes] = useState<FiltroTipo>('todas');
   const [filtroHoy, setFiltroHoy] = useState<FiltroTipo>('todas');
   const [filtroManana, setFiltroManana] = useState<FiltroTipo>('todas');
 
   const tareas = useMemo(() => calcularTareasHoy(state), [state]);
-  const tareasHoy = tareas.filter((t) => t.diasRestantes <= 0);
+  const tareasPendientes = tareas.filter((t) => t.diasRestantes < 0);
+  const tareasHoy = tareas.filter((t) => t.diasRestantes === 0);
   const tareasManana = tareas.filter((t) => t.diasRestantes === 1);
 
   function ejecutarSembrar(t: TareaHoy) {
@@ -136,7 +138,17 @@ export function TareasPage() {
 
   return (
     <>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <TareasBox
+          titulo="Tareas pendientes"
+          tareas={filtrarPorTipo(tareasPendientes, filtroPendientes)}
+          total={tareasPendientes.length}
+          filtro={filtroPendientes}
+          onFiltro={setFiltroPendientes}
+          onCompletar={completar}
+          onEditar={setEditando}
+          onVerLote={openLote}
+        />
         <TareasBox
           titulo="Tareas de hoy"
           tareas={filtrarPorTipo(tareasHoy, filtroHoy)}

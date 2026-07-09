@@ -13,8 +13,7 @@ import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { ejecutarMovimiento, moverEntreBancales, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
-import { PT } from '@/lib/greenhouse/constants';
-import { fracTubosStr, getBanc, hoy, plantasEnBanc } from '@/lib/greenhouse/helpers';
+import { fracTubosStr, getBanc, hoy, maxPlantas, plantasEnBanc } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
 const SIGUIENTE: Partial<Record<Etapa, Etapa>> = { plantines: 'engorda', engorda: 'adulto' };
@@ -55,13 +54,12 @@ export function MoverModal() {
     if (!lote) return [];
     const tipo = modoReubicar ? 'adu' : sig === 'engorda' ? 'eng' : 'adu';
     const maxBanc = modoReubicar ? 16 : sig === 'engorda' ? 9 : 16;
-    const maxP = tipo === 'eng' ? 20 * PT : 10 * PT;
     return Array.from({ length: maxBanc }, (_, idx) => {
       const i = idx + 1;
       const k = `${tipo}_${i}`;
       if (modoReubicar && k === lote.bancalId) return null;
       const usP = plantasEnBanc(state.bancales, k);
-      const libP = maxP - usP;
+      const libP = maxPlantas(k) - usP;
       const slots = getBanc(state.bancales, k);
       const detalle = slots.length ? slots.map((s) => `${s.varNom}×${s.plantas}pl`).join(', ') : 'vacío';
       return {
@@ -80,8 +78,6 @@ export function MoverModal() {
   }
   if (!modoReubicar && !sig) return null;
 
-  const tipo = modoReubicar ? 'adu' : sig === 'engorda' ? 'eng' : 'adu';
-  const maxP = tipo === 'eng' ? 20 * PT : 10 * PT;
   const obligatorio = modoReubicar || lote.etapa === 'plantines';
 
   const libreSeleccionado = bancKey ? opciones.find((o) => o.key === bancKey)?.libP ?? null : null;
@@ -95,7 +91,7 @@ export function MoverModal() {
     const fechaMov = fecha || hoy();
     const plantasM = Math.min(plantas || lote!.plantasRestantes, lote!.plantasRestantes);
     if (bancKey) {
-      const libP = maxP - plantasEnBanc(state.bancales, bancKey);
+      const libP = maxPlantas(bancKey) - plantasEnBanc(state.bancales, bancKey);
       if (plantasM > libP) {
         alert(`Solo hay espacio para ${libP} plantas en ese bancal.`);
         return;

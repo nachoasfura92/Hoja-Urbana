@@ -25,6 +25,18 @@ export function deleteVariedad(draft: EstadoInvernadero, id: number) {
   draft.vars = draft.vars.filter((x) => x.id !== id);
 }
 
+export function editVariedad(
+  draft: EstadoInvernadero,
+  { id, nombre, marca, tipo }: { id: number; nombre: string; marca: string; tipo: string }
+) {
+  const v = draft.vars.find((x) => x.id === id);
+  if (!v) return;
+  v.nombre = nombre;
+  v.marca = marca;
+  v.tipo = tipo;
+  log(draft, 'Variedad editada', nombre);
+}
+
 // ── Plan de siembra ─────────────────────────────────────────────────────
 
 export function addPlanItem(
