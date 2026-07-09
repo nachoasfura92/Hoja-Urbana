@@ -34,6 +34,23 @@ export function dr(f: string): number {
   return Math.ceil((new Date(f).getTime() - new Date().getTime()) / 86400000);
 }
 
+// En el invernadero no se trabaja sábado ni domingo: cualquier fecha
+// programada (siembra, traspaso, agotamiento) que caiga en fin de semana se
+// corre al lunes siguiente, el próximo día hábil.
+export function esFinDeSemana(iso: string): boolean {
+  // Se arma con año/mes/día locales (no parseando el string como UTC) para
+  // que el día de la semana no se corra según la zona horaria del navegador.
+  const [y, m, d] = iso.split('-').map(Number);
+  const dia = new Date(y, m - 1, d).getDay();
+  return dia === 0 || dia === 6;
+}
+
+export function proximoDiaHabil(iso: string): string {
+  let f = iso;
+  while (esFinDeSemana(f)) f = fmas(f, 1);
+  return f;
+}
+
 export function gv(vars: Variedad[], id: number): Variedad {
   return (vars || []).find((v) => v.id === id) || { id: 0, nombre: '?', marca: '', tipo: '' };
 }
@@ -117,8 +134,8 @@ export function serieAgotamiento(
   plan: { freq: number; plantas: number; ultimaSiembra: string | null },
   diasVentana: number
 ): SeriePunto[] {
-  let proxima = plan.ultimaSiembra ? fmas(plan.ultimaSiembra, plan.freq) : hoy();
-  if (dr(proxima) < 0) proxima = hoy();
+  let proxima = proximoDiaHabil(plan.ultimaSiembra ? fmas(plan.ultimaSiembra, plan.freq) : hoy());
+  if (dr(proxima) < 0) proxima = proximoDiaHabil(hoy());
   const eventos = new Map<number, number>();
   let stock = stock0;
   let guard = 0;
@@ -127,7 +144,7 @@ export function serieAgotamiento(
     if (offset > diasVentana) break;
     stock = Math.max(0, stock - plan.plantas);
     eventos.set(offset, stock);
-    proxima = fmas(proxima, plan.freq);
+    proxima = proximoDiaHabil(fmas(proxima, plan.freq));
     guard++;
   }
   let actual = stock0;
@@ -146,8 +163,8 @@ export function serieAgotamientoCubos(stock0: number, plan: PlanItem[], diasVent
   const eventos = new Map<number, number>();
   if (plan.length) {
     const agenda = plan.map((p) => {
-      let proxima = p.ultimaSiembra ? fmas(p.ultimaSiembra, p.freq) : hoy();
-      if (dr(proxima) < 0) proxima = hoy();
+      let proxima = proximoDiaHabil(p.ultimaSiembra ? fmas(p.ultimaSiembra, p.freq) : hoy());
+      if (dr(proxima) < 0) proxima = proximoDiaHabil(hoy());
       return { plantas: p.plantas, freq: p.freq, proxima };
     });
     let stock = stock0;
@@ -162,7 +179,7 @@ export function serieAgotamientoCubos(stock0: number, plan: PlanItem[], diasVent
       if (offset > diasVentana) break;
       stock = Math.max(0, stock - item.plantas);
       eventos.set(offset, stock);
-      item.proxima = fmas(item.proxima, item.freq);
+      item.proxima = proximoDiaHabil(fmas(item.proxima, item.freq));
       guard++;
     }
   }

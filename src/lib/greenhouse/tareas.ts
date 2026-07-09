@@ -3,7 +3,7 @@
 // calcula a partir del estado existente (no se persiste nada nuevo): una
 // tarea "desaparece" sola cuando la acción subyacente ya se ejecutó.
 
-import { dr, fmas, hoy, primerBancalConEspacio, proximaBandera, sembradoEn } from './helpers';
+import { dr, fmas, hoy, primerBancalConEspacio, proximaBandera, proximoDiaHabil, sembradoEn } from './helpers';
 import type { EstadoInvernadero, Etapa } from './types';
 
 export type TareaTipo = 'sembrar' | 'traspaso_engorda' | 'traspaso_adulto';
@@ -44,7 +44,7 @@ export function calcularTareasHoy(state: EstadoInvernadero): TareaHoy[] {
   const banderasReservadas = new Set<number>();
 
   (state.plan || []).forEach((p) => {
-    const proxima = p.ultimaSiembra ? fmas(p.ultimaSiembra, p.freq) : hoy();
+    const proxima = proximoDiaHabil(p.ultimaSiembra ? fmas(p.ultimaSiembra, p.freq) : hoy());
     const diasRestantes = dr(proxima);
     if (diasRestantes > VENTANA_DIAS) return;
     const ya = sembradoEn(state.lotes, p.varId, proxima);
@@ -71,7 +71,7 @@ export function calcularTareasHoy(state: EstadoInvernadero): TareaHoy[] {
   (state.lotes || [])
     .filter((l) => l.etapa === 'plantines')
     .forEach((l) => {
-      const fechaObjetivo = fmas(l.fechaEtapa, l.dp);
+      const fechaObjetivo = proximoDiaHabil(fmas(l.fechaEtapa, l.dp));
       const diasRestantes = dr(fechaObjetivo);
       if (diasRestantes > VENTANA_DIAS) return;
       tareas.push({
@@ -93,7 +93,7 @@ export function calcularTareasHoy(state: EstadoInvernadero): TareaHoy[] {
   (state.lotes || [])
     .filter((l) => l.etapa === 'engorda')
     .forEach((l) => {
-      const fechaObjetivo = fmas(l.fechaEtapa, l.de);
+      const fechaObjetivo = proximoDiaHabil(fmas(l.fechaEtapa, l.de));
       const diasRestantes = dr(fechaObjetivo);
       if (diasRestantes > VENTANA_DIAS) return;
       tareas.push({
