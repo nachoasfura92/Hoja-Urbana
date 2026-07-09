@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Box, LeafyGreen, Package, Sprout } from 'lucide-react';
+import { Box, LeafyGreen, LineChart as LineChartIcon, Package, Sprout } from 'lucide-react';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,12 +13,14 @@ import { AlertRow } from '@/components/dashboard/alert-row';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { adjustCubos, adjustSemillas } from '@/lib/greenhouse/actions';
 import { fd, fmas, gv, hoy, varLabel } from '@/lib/greenhouse/helpers';
+import { cn } from '@/lib/utils';
 
 export function InventarioPage() {
   const { state, update } = useGreenhouse();
   const [cuboQty, setCuboQty] = useState('');
   const [semVarId, setSemVarId] = useState('');
   const [semQty, setSemQty] = useState('');
+  const [selectedVarId, setSelectedVarId] = useState<number | null>(null);
 
   const variedadItems = useMemo(
     () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])),
@@ -43,6 +46,19 @@ export function InventarioPage() {
   const plan = state.plan || [];
   const cStock = state.inventario.cubos || 0;
   const cxd = plan.reduce((t, p) => t + p.plantas / p.freq, 0);
+
+  const selectedPlan = selectedVarId != null ? plan.find((p) => p.varId === selectedVarId) || null : null;
+  const chartData = useMemo(() => {
+    if (!selectedPlan) return [];
+    const sem = (state.inventario.semillas || {})[String(selectedPlan.varId)] || 0;
+    const xd = selectedPlan.plantas / selectedPlan.freq;
+    const dias = xd > 0 ? Math.min(90, Math.ceil(sem / xd) + 2) : 14;
+    return Array.from({ length: dias + 1 }, (_, i) => {
+      const f = fmas(hoy(), i);
+      const d = new Date(f);
+      return { label: `${d.getDate()}/${d.getMonth() + 1}`, stock: Math.max(0, Math.round(sem - xd * i)) };
+    });
+  }, [selectedPlan, state.inventario.semillas]);
 
   return (
     <div className="grid gap-4">
@@ -157,23 +173,67 @@ export function InventarioPage() {
               const xd = p.plantas / p.freq;
               const d = Math.floor(sem / xd);
               const fa = fmas(hoy(), d);
+              const seleccionado = selectedVarId === p.varId;
               return (
-                <AlertRow key={p.id} kind={d <= 14 ? 'warning' : 'success'} icon={LeafyGreen}>
-                  <strong>{p.varNom}</strong> — {sem} semillas · {xd.toFixed(1)}/día
-                  <br />
-                  {d <= 0 ? (
-                    <strong>Agotadas</strong>
-                  ) : (
-                    <>
-                      Se agotan en <strong>{d} días</strong> ({fd(fa)})
-                    </>
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setSelectedVarId(seleccionado ? null : p.varId)}
+                  className={cn(
+                    'rounded-md text-left transition-shadow',
+                    seleccionado && 'ring-2 ring-primary'
                   )}
-                </AlertRow>
+                >
+                  <AlertRow kind={d <= 14 ? 'warning' : 'success'} icon={LeafyGreen}>
+                    <strong>{p.varNom}</strong> — {sem} semillas · {xd.toFixed(1)}/día
+                    <br />
+                    {d <= 0 ? (
+                      <strong>Agotadas</strong>
+                    ) : (
+                      <>
+                        Se agotan en <strong>{d} días</strong> ({fd(fa)})
+                      </>
+                    )}
+                  </AlertRow>
+                </button>
               );
             })}
           </div>
         )}
       </div>
+
+      {selectedPlan && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
+              <LineChartIcon className="size-4 text-muted-foreground" />
+              Proyección de stock — {selectedPlan.varNom}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={36} />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'var(--popover)',
+                      color: 'var(--popover-foreground)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    formatter={(value) => [`${value} semillas`, 'Stock']}
+                  />
+                  <Line type="monotone" dataKey="stock" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

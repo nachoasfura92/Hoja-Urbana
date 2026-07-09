@@ -49,6 +49,22 @@ export function deletePlanItem(draft: EstadoInvernadero, id: number) {
   draft.plan = draft.plan.filter((x) => x.id !== id);
 }
 
+export function editPlanItem(
+  draft: EstadoInvernadero,
+  params: { id: number; varId: number; varNom: string; freq: number; plantas: number; dp: number; de: number; da: number }
+) {
+  const p = draft.plan.find((x) => x.id === params.id);
+  if (!p) return;
+  p.varId = params.varId;
+  p.varNom = params.varNom;
+  p.freq = params.freq;
+  p.plantas = params.plantas;
+  p.dp = params.dp;
+  p.de = params.de;
+  p.da = params.da;
+  log(draft, 'Plan editado', `${params.varNom} cada ${params.freq}d`);
+}
+
 // ── Inventario ──────────────────────────────────────────────────────────
 
 export function adjustCubos(draft: EstadoInvernadero, dir: 1 | -1, n: number) {
@@ -318,6 +334,36 @@ export function eliminarPlantas(draft: EstadoInvernadero, params: EliminarPlanta
     draft.lotes = draft.lotes.filter((x) => x.id !== params.loteId);
   }
   log(draft, params.esMerma ? 'Merma' : 'Eliminación', `${l.varNom}: ${detalle}`);
+}
+
+// Ajusta la pauta (días objetivo por etapa) de un lote puntual, sin afectar
+// al plan de siembra ni a otros lotes. Si el lote ya está en adulto, recalcula
+// fechaVenta desde la fecha real de entrada a esa etapa; si no, la recalcula
+// como estimado total desde la fecha de siembra (igual que confirmarSiembra).
+export interface EditarPautaParams {
+  loteId: number;
+  dp: number;
+  de: number;
+  da: number;
+  autor?: string;
+}
+
+export function editarPauta(draft: EstadoInvernadero, params: EditarPautaParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l) return;
+  const antes = `${l.dp}/${l.de}/${l.da}`;
+  l.dp = params.dp;
+  l.de = params.de;
+  l.da = params.da;
+  if (l.etapa === 'adulto') {
+    l.fechaVenta = fmas(l.fechaEtapa, params.da);
+  } else if (l.etapa !== 'cosechado') {
+    l.fechaVenta = fmas(l.fechaInicio, params.dp + params.de + params.da);
+  }
+  const detalle = `${antes} → ${params.dp}/${params.de}/${params.da} días (plantines/engorda/adulto)`;
+  if (!l.movimientos) l.movimientos = [];
+  l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Pauta editada', detalle, autor: params.autor });
+  log(draft, 'Pauta editada', `${l.varNom}: ${detalle}`, params.autor);
 }
 
 export function limpiarBancal(draft: EstadoInvernadero, k: string) {

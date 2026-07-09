@@ -3,6 +3,7 @@
 import { AlertTriangle, Info, ShoppingCart } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useGreenhouse } from '@/lib/greenhouse/context';
+import { useModals } from '@/lib/greenhouse/modals-context';
 import { dr, fd, fmas, fracTubosStr, planVence } from '@/lib/greenhouse/helpers';
 import { AlertRow, type AlertKind } from '@/components/dashboard/alert-row';
 import { EtapaBadge } from '@/components/dashboard/etapa-badge';
@@ -17,6 +18,7 @@ interface AlertaItem {
 
 export function ResumenPage() {
   const { state } = useGreenhouse();
+  const { openLote } = useModals();
   const lotes = state.lotes || [];
   const plan = state.plan || [];
   const merma = state.merma || { plantines: 0, engorda: 0, adulto: 0 };
@@ -138,7 +140,14 @@ export function ResumenPage() {
             proximas.map((l) => {
               const d = dr(l.fechaVenta);
               return (
-                <Card key={l.id} className="py-0">
+                <Card
+                  key={l.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openLote(l.id)}
+                  onKeyDown={(e) => e.key === 'Enter' && openLote(l.id)}
+                  className="cursor-pointer py-0 transition-colors hover:border-primary"
+                >
                   <CardContent className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
                     <div>
                       <div className="flex items-center gap-1.5 text-sm font-medium">

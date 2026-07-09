@@ -90,20 +90,39 @@ export function BancalModal() {
               const pct = Math.min(100, Math.round((dias / dObj) * 100));
               const drest = dr(l.fechaVenta);
               return (
-                <div key={l.id} className="rounded-md border px-3 py-2">
+                <div
+                  key={l.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => irA(openLote, l.id)}
+                  onKeyDown={(e) => e.key === 'Enter' && irA(openLote, l.id)}
+                  className="cursor-pointer rounded-md border px-3 py-2 transition-colors hover:border-primary"
+                >
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-medium">{l.varNom}</div>
                     <div className="flex gap-1">
                       {tipo === 'adu' && (
-                        <Button size="sm" className="h-7 px-2 text-xs" onClick={() => irA(openCosechar, l.id)}>
+                        <Button
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            irA(openCosechar, l.id);
+                          }}
+                        >
                           Cosechar
                         </Button>
                       )}
-                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => irA(openMover, l.id)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          irA(openMover, l.id);
+                        }}
+                      >
                         Mover
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => irA(openLote, l.id)}>
-                        Ver
                       </Button>
                     </div>
                   </div>

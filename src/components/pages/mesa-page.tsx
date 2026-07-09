@@ -80,7 +80,11 @@ export function MesaPage() {
                   return (
                     <div
                       key={l.id}
-                      className="rounded-md border bg-card px-3 py-2"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openLote(l.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && openLote(l.id)}
+                      className="cursor-pointer rounded-md border bg-card px-3 py-2 transition-colors hover:border-primary"
                       style={{ borderLeft: `2px solid ${color}` }}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
@@ -92,11 +96,15 @@ export function MesaPage() {
                           <Badge variant="outline" className="border-transparent bg-accent text-accent-foreground">
                             día {dias}
                           </Badge>
-                          <Button size="sm" className="h-7 px-2 text-xs" onClick={() => openMover(l.id)}>
+                          <Button
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openMover(l.id);
+                            }}
+                          >
                             → Engorda
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => openLote(l.id)}>
-                            Ver
                           </Button>
                         </div>
                       </div>

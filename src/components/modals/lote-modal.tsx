@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Minus, Pencil, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +11,8 @@ import { MiniProgress } from '@/components/dashboard/mini-progress';
 import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
-import { eliminarPlantas } from '@/lib/greenhouse/actions';
+import { useCurrentUser } from '@/lib/auth/current-user-context';
+import { editarPauta, eliminarPlantas } from '@/lib/greenhouse/actions';
 import { dd, fd, fracTubosStr } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
@@ -23,12 +25,28 @@ const SIGUIENTE: Partial<Record<Etapa, Etapa>> = {
 export function LoteModal() {
   const { state, update } = useGreenhouse();
   const { loteId, closeLote, openMover, openCosechar, closeBancal } = useModals();
+  const { displayName, email } = useCurrentUser();
+  const autor = displayName || email || undefined;
   const lote = loteId != null ? state.lotes.find((l) => l.id === loteId) : null;
 
   const [eliminarOpen, setEliminarOpen] = useState(false);
   const [plantasEliminar, setPlantasEliminar] = useState(0);
   const [esMerma, setEsMerma] = useState(false);
   const [motivo, setMotivo] = useState('');
+
+  const [editandoPauta, setEditandoPauta] = useState(false);
+  const [dpEdit, setDpEdit] = useState(0);
+  const [deEdit, setDeEdit] = useState(0);
+  const [daEdit, setDaEdit] = useState(0);
+
+  // Cierra los sub-formularios (eliminar, editar pauta) al cambiar de lote
+  // (patrón "ajustar estado durante el render" en vez de un efecto).
+  const [lastLoteId, setLastLoteId] = useState<number | null>(null);
+  if (lote && lote.id !== lastLoteId) {
+    setLastLoteId(lote.id);
+    setEditandoPauta(false);
+    setEliminarOpen(false);
+  }
 
   if (!lote) {
     return (
@@ -42,6 +60,18 @@ export function LoteModal() {
   const dObj = lote.etapa === 'plantines' ? lote.dp : lote.etapa === 'engorda' ? lote.de : lote.da;
   const pct = Math.min(100, Math.round((dias / dObj) * 100));
   const sig = SIGUIENTE[lote.etapa];
+
+  function abrirEditarPauta() {
+    setDpEdit(lote!.dp);
+    setDeEdit(lote!.de);
+    setDaEdit(lote!.da);
+    setEditandoPauta(true);
+  }
+
+  function guardarPauta() {
+    update((draft) => editarPauta(draft, { loteId: lote!.id, dp: dpEdit, de: deEdit, da: daEdit, autor }));
+    setEditandoPauta(false);
+  }
 
   function abrirEliminar() {
     setPlantasEliminar(lote!.plantasRestantes);
@@ -93,6 +123,37 @@ export function LoteModal() {
           <div className="text-xs text-muted-foreground">
             Cosecha est: {fd(lote.fechaVenta)}
             {lote.bancalId ? ` · Bancal: ${lote.bancalId}` : ''}
+          </div>
+
+          <div className="rounded-md border px-3 py-2">
+            <div className="mb-1.5 flex items-center justify-between">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pauta (días objetivo)</h4>
+              {!editandoPauta && (
+                <Button variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-xs" onClick={abrirEditarPauta}>
+                  <Pencil className="size-3" />
+                  Editar pauta
+                </Button>
+              )}
+            </div>
+            {editandoPauta ? (
+              <div className="grid gap-1.5">
+                <PautaStepper label="Días plantines" value={dpEdit} onChange={setDpEdit} />
+                <PautaStepper label="Días engorda" value={deEdit} onChange={setDeEdit} />
+                <PautaStepper label="Días adulto" value={daEdit} onChange={setDaEdit} />
+                <div className="mt-1 flex justify-end gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => setEditandoPauta(false)}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" onClick={guardarPauta}>
+                    Guardar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Plantines {lote.dp}d · Engorda {lote.de}d · Adulto {lote.da}d
+              </div>
+            )}
           </div>
 
           {lote.notas && (
@@ -181,6 +242,29 @@ function MiniStat({ label, value }: { label: string; value: string | number }) {
     <div className="rounded-md bg-muted/60 px-2.5 py-2">
       <div className="text-[11px] text-muted-foreground">{label}</div>
       <div className="text-sm font-medium">{value}</div>
+    </div>
+  );
+}
+
+function PautaStepper({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center justify-between rounded-md bg-muted/60 px-3 py-1.5">
+      <span className="text-sm">{label}</span>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-6"
+          onClick={() => onChange(Math.max(1, value - 1))}
+        >
+          <Minus className="size-3" />
+        </Button>
+        <span className="w-9 text-center text-sm font-medium">{value}d</span>
+        <Button type="button" variant="outline" size="icon" className="size-6" onClick={() => onChange(value + 1)}>
+          <Plus className="size-3" />
+        </Button>
+      </div>
     </div>
   );
 }
