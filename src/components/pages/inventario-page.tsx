@@ -59,6 +59,18 @@ export function InventarioPage() {
     return serieAgotamiento(sem, selectedPlan, VENTANA_DIAS);
   }, [selectedPlan, state.inventario.semillas]);
 
+  // Memoizado para no re-simular las 90 ventanas de cada variedad en cada
+  // tecla que se tipea en los inputs de cantidad (no relacionados).
+  const proyeccionesPorVariedad = useMemo(
+    () =>
+      plan.map((p) => {
+        const sem = (state.inventario.semillas || {})[String(p.varId)] || 0;
+        const serie = serieAgotamiento(sem, p, VENTANA_DIAS);
+        return { plan: p, sem, dias: diasHastaCero(serie) };
+      }),
+    [plan, state.inventario.semillas]
+  );
+
   function seleccionarCubos() {
     setCubosSeleccionado((s) => !s);
     setSelectedVarId(null);
@@ -178,10 +190,7 @@ export function InventarioPage() {
                 )}
               </AlertRow>
             </button>
-            {plan.map((p) => {
-              const sem = (state.inventario.semillas || {})[String(p.varId)] || 0;
-              const serie = serieAgotamiento(sem, p, VENTANA_DIAS);
-              const d = diasHastaCero(serie);
+            {proyeccionesPorVariedad.map(({ plan: p, sem, dias: d }) => {
               const seleccionado = selectedVarId === p.varId;
               return (
                 <button
