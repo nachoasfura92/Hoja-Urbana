@@ -3,7 +3,7 @@
 // calcula a partir del estado existente (no se persiste nada nuevo): una
 // tarea "desaparece" sola cuando la acción subyacente ya se ejecutó.
 
-import { dr, fmas, hoy, primerBancalConEspacio, proximaBandera, proximoDiaHabil, sembradoEn } from './helpers';
+import { banderasEnUso, dr, fmas, hoy, primerBancalConEspacio, proximaBanderaDesde, proximoDiaHabil, sembradoEn } from './helpers';
 import type { EstadoInvernadero, Etapa } from './types';
 
 export type TareaTipo = 'sembrar' | 'traspaso_engorda' | 'traspaso_adulto';
@@ -42,6 +42,9 @@ const VENTANA_DIAS = 1;
 export function calcularTareasHoy(state: EstadoInvernadero): TareaHoy[] {
   const tareas: TareaHoy[] = [];
   const banderasReservadas = new Set<number>();
+  // Se calcula una sola vez (recorre todos los lotes) en vez de una vez por
+  // cada ítem del plan, ya que puede haber varias tareas de siembra a la vez.
+  const enUso = banderasEnUso(state.lotes);
 
   (state.plan || []).forEach((p) => {
     const proxima = proximoDiaHabil(p.ultimaSiembra ? fmas(p.ultimaSiembra, p.freq) : hoy());
@@ -50,7 +53,7 @@ export function calcularTareasHoy(state: EstadoInvernadero): TareaHoy[] {
     const ya = sembradoEn(state.lotes, p.varId, proxima);
     const falta = Math.max(0, p.plantas - ya);
     if (falta <= 0) return;
-    const bandera = proximaBandera(state.lotes, banderasReservadas);
+    const bandera = proximaBanderaDesde(enUso, banderasReservadas);
     banderasReservadas.add(bandera);
     tareas.push({
       id: `sembrar_${p.id}_${proxima}`,

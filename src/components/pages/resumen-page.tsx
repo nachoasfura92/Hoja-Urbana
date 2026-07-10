@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { ArrowRightLeft, Sprout, Wheat, type LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useGreenhouse } from '@/lib/greenhouse/context';
@@ -24,7 +25,7 @@ export function ResumenPage() {
   // Resumen de tareas de hoy y mañana (sin notificaciones detalladas): la
   // misma ventana y lógica que el módulo "Tareas de hoy" para siembra y
   // traspasos; cosecha se cuenta aparte porque ese módulo no la incluye.
-  const tareas = calcularTareasHoy(state);
+  const tareas = useMemo(() => calcularTareasHoy(state), [state]);
   const tareasSiembra = tareas.filter((t) => t.tipo === 'sembrar').length;
   const tareasTraspaso = tareas.filter((t) => t.tipo !== 'sembrar').length;
   const tareasCosecha = enA.filter((l) => dr(l.fechaVenta) <= 1).length;

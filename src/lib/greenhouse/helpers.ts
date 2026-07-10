@@ -315,11 +315,17 @@ export function banderasEnUso(lotes: Lote[]): Set<number> {
   return new Set((lotes || []).filter((l) => l.etapa === 'plantines' && l.bandera > 0).map((l) => l.bandera));
 }
 
-export function proximaBandera(lotes: Lote[], excluir?: Set<number>): number {
-  const enUso = banderasEnUso(lotes);
+// Separado de proximaBandera para no recalcular banderasEnUso (recorre todos
+// los lotes) en cada llamada cuando se necesita sugerir varias banderas
+// seguidas (ver calcularTareasHoy).
+export function proximaBanderaDesde(enUso: Set<number>, excluir?: Set<number>): number {
   let n = 1;
   while (enUso.has(n) || excluir?.has(n)) n++;
   return n;
+}
+
+export function proximaBandera(lotes: Lote[], excluir?: Set<number>): number {
+  return proximaBanderaDesde(banderasEnUso(lotes), excluir);
 }
 
 // Primer bancal del tipo dado con espacio libre suficiente para `plantas`;
