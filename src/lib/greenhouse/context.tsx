@@ -19,6 +19,7 @@ export type SyncStatus = 'idle' | 'ok' | 'saving' | 'error';
 interface GreenhouseContextValue {
   state: EstadoInvernadero;
   loaded: boolean;
+  loadOk: boolean;
   syncStatus: SyncStatus;
   update: (mutator: (draft: EstadoInvernadero) => void) => void;
 }
@@ -29,6 +30,11 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
   const [supabase] = useState(() => createClient());
   const [state, setState] = useState<EstadoInvernadero>(() => defS());
   const [loaded, setLoaded] = useState(false);
+  // Solo true si la carga inicial vino realmente de Supabase. El guardado
+  // automático queda bloqueado mientras esto sea false, para que un estado
+  // de respaldo/vacío por una carga fallida nunca pueda sobreescribir datos
+  // reales en el servidor (así se perdieron datos reales una vez).
+  const [loadOk, setLoadOk] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   // Evita disparar un guardado espurio apenas termina la carga inicial.
   const skipNextSaveRef = useRef(true);
@@ -40,14 +46,17 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
         const estado = await cargarEstadoDesdeTablas(supabase);
         if (cancelled) return;
         setState(estado);
+        setLoadOk(true);
         setSyncStatus('ok');
       } catch {
         if (cancelled) return;
-        // Igual que el original: si falla la carga, se usa el respaldo local en
-        // silencio (sin mostrar el indicador de error) y recién se avisa si
-        // también falla un guardado posterior.
+        // La carga real falló: se muestra un respaldo local (o vacío) solo
+        // para que se pueda ver algo, pero nunca se guarda automáticamente
+        // desde acá — podría ser información vieja o vacía y pisar datos
+        // reales en el servidor. Hay que recargar la página para reintentar.
         const local = localStorage.getItem(STORAGE_KEY);
         setState(local ? (JSON.parse(local) as EstadoInvernadero) : defS());
+        setSyncStatus('error');
       } finally {
         if (!cancelled) setLoaded(true);
       }
@@ -70,9 +79,10 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
     [supabase]
   );
 
-  // Sincroniza con Supabase (debounced) cada vez que el estado cambia.
+  // Sincroniza con Supabase (debounced) cada vez que el estado cambia, pero
+  // solo si la carga inicial fue realmente exitosa (ver loadOk arriba).
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !loadOk) return;
     if (skipNextSaveRef.current) {
       skipNextSaveRef.current = false;
       return;
@@ -80,7 +90,7 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     const timer = setTimeout(() => guardarEnServidor(state), SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [state, loaded, guardarEnServidor]);
+  }, [state, loaded, loadOk, guardarEnServidor]);
 
   const update = useCallback((mutator: (draft: EstadoInvernadero) => void) => {
     setState((prev) => {
@@ -91,7 +101,9 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <GreenhouseContext.Provider value={{ state, loaded, syncStatus, update }}>{children}</GreenhouseContext.Provider>
+    <GreenhouseContext.Provider value={{ state, loaded, loadOk, syncStatus, update }}>
+      {children}
+    </GreenhouseContext.Provider>
   );
 }
 

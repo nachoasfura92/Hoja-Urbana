@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, LogOut, User } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, LogOut, User } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { SearchLotes } from '@/components/dashboard/search-lotes';
 import { createClient } from '@/lib/supabase/client';
 import { useGreenhouse } from '@/lib/greenhouse/context';
-import { computeTopPills } from '@/lib/greenhouse/helpers';
+import { computeTopPills, hoy } from '@/lib/greenhouse/helpers';
 import { DIAS_L, MESES_L, TITLES, type TabId } from '@/lib/greenhouse/constants';
 
 function fechaHoyLarga() {
@@ -36,6 +36,18 @@ export function Topbar({ activeTab, userEmail }: { activeTab: TabId; userEmail?:
     await supabase.auth.signOut();
     router.replace('/login');
     router.refresh();
+  }
+
+  // Respaldo manual descargable: una copia independiente que el operador
+  // controla, sin depender de que sobreviva el localStorage de algún navegador.
+  function descargarRespaldo() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hoja-urbana-respaldo-${hoy()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -75,6 +87,11 @@ export function Topbar({ activeTab, userEmail }: { activeTab: TabId; userEmail?:
                 <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{userEmail}</DropdownMenuLabel>
               </DropdownMenuGroup>
             )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={descargarRespaldo}>
+              <Download />
+              Descargar respaldo
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={handleLogout}>
               <LogOut />

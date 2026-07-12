@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { GreenhouseProvider, useGreenhouse } from '@/lib/greenhouse/context';
 import { ModalsProvider } from '@/lib/greenhouse/modals-context';
 import { CurrentUserProvider } from '@/lib/auth/current-user-context';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { AppSidebar } from './app-sidebar';
 import { Topbar } from './topbar';
 import { SyncStatus } from './sync-status';
@@ -42,7 +44,7 @@ const TABS: TabId[] = [
 ];
 
 function DashboardContent({ userEmail }: { userEmail?: string | null }) {
-  const { loaded } = useGreenhouse();
+  const { loaded, loadOk } = useGreenhouse();
   const [activeTab, setActiveTab] = useState<TabId>('resumen');
 
   if (!loaded) {
@@ -52,6 +54,25 @@ function DashboardContent({ userEmail }: { userEmail?: string | null }) {
           <Skeleton className="h-8 w-40" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  // No se pudo cargar el estado real desde el servidor: se bloquea toda la
+  // herramienta en vez de dejar seguir usándola, porque cualquier cambio acá
+  // no se va a guardar (para no arriesgar pisar datos reales al reconectar).
+  if (!loadOk) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center p-6">
+        <div className="grid max-w-md gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center">
+          <AlertTriangle className="mx-auto size-8 text-destructive" />
+          <h2 className="text-sm font-medium">No se pudo conectar con el servidor</h2>
+          <p className="text-sm text-muted-foreground">
+            No se pudieron cargar los datos actuales del invernadero. Para evitar mostrar información vieja o
+            incompleta y guardar por encima de datos reales, la herramienta queda bloqueada hasta reconectar.
+          </p>
+          <Button onClick={() => window.location.reload()}>Reintentar</Button>
         </div>
       </div>
     );
