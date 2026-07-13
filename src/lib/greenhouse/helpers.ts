@@ -4,8 +4,16 @@
 import { PT, COLORS_VAR } from './constants';
 import type { Bancales, BancalSlot, CosechaRecord, EstadoInvernadero, Lote, PlanItem, Variedad } from './types';
 
+// Fecha de HOY según el calendario local (no UTC): usar toISOString() acá
+// corría la fecha un día para adelante durante la noche en husos horarios
+// negativos (Argentina/Chile, UTC-3/-4), porque a esa hora el UTC ya pasó la
+// medianoche aunque localmente siga siendo el día anterior.
 export function hoy(): string {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dia}`;
 }
 
 export function man(): string {
@@ -24,14 +32,20 @@ export function fd(iso?: string | null): string {
   return `${d}/${m}/${y}`;
 }
 
-// Días transcurridos desde `iso` hasta hoy.
+// Días transcurridos desde `iso` hasta hoy. Compara fechas de calendario
+// local (medianoche a medianoche), no el instante exacto — por la misma
+// razón que hoy(): comparar contra "ahora" corría el resultado de noche.
 export function dd(iso: string): number {
-  return Math.floor((new Date().getTime() - new Date(iso).getTime()) / 86400000);
+  const a = new Date(iso + 'T00:00:00');
+  const b = new Date(hoy() + 'T00:00:00');
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
 }
 
-// Días restantes desde hoy hasta la fecha `f`.
+// Días restantes desde hoy hasta la fecha `f` (mismo criterio que dd()).
 export function dr(f: string): number {
-  return Math.ceil((new Date(f).getTime() - new Date().getTime()) / 86400000);
+  const a = new Date(hoy() + 'T00:00:00');
+  const b = new Date(f + 'T00:00:00');
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
 }
 
 // En el invernadero no se trabaja sábado ni domingo: cualquier fecha
