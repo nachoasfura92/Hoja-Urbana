@@ -24,10 +24,16 @@ export function VentaPage() {
 
   const activeVars = useMemo(() => (filtroV === 'todas' ? vars : [filtroV]), [filtroV, vars]);
 
-  const allDates = useMemo(
-    () => [...new Set([...REAL, ...PROY].map((d) => d.fecha))].sort().slice(0, 16),
-    [REAL, PROY]
-  );
+  // Solo entran las fechas que realmente tienen datos para lo que está
+  // filtrado (tipo real/proyectado y variedad) — si no, quedaban fechas
+  // "vacías" en el eje cuando, por ejemplo, un día solo tenía proyección y
+  // se estaba filtrando "Solo real".
+  const allDates = useMemo(() => {
+    const fuentes: { fecha: string; var: string }[] = [];
+    if (vistaV === 'ambos' || vistaV === 'real') fuentes.push(...REAL.filter((d) => activeVars.includes(d.var)));
+    if (vistaV === 'ambos' || vistaV === 'proy') fuentes.push(...PROY.filter((d) => activeVars.includes(d.var)));
+    return [...new Set(fuentes.map((d) => d.fecha))].sort().slice(0, 16);
+  }, [REAL, PROY, vistaV, activeVars]);
 
   const series = useMemo(() => {
     const s: { key: string; varName: string; tipo: 'real' | 'proy'; label: string; color: string }[] = [];
