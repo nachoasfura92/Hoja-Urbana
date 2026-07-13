@@ -101,7 +101,11 @@ export function VentaPage() {
           </div>
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartRows}>
+              {/* key fuerza a Recharts a desmontar y volver a armar el gráfico
+                  entero al cambiar de filtro, en vez de animar la transición
+                  entre distinta cantidad de barras apiladas por fecha (esa
+                  animación dejaba barras "fantasma" a mitad de camino). */}
+              <BarChart key={`${vistaV}_${filtroV}`} data={chartRows}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={36} />
@@ -130,6 +134,7 @@ export function VentaPage() {
                     stroke={s.tipo === 'proy' ? s.color : undefined}
                     strokeDasharray={s.tipo === 'proy' ? '3 2' : undefined}
                     radius={[2, 2, 0, 0]}
+                    isAnimationActive={false}
                   />
                 ))}
               </BarChart>
