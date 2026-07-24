@@ -420,36 +420,60 @@ export function posponerTraspaso(draft: EstadoInvernadero, params: PosponerTrasp
 
 // ── Nutrición (pH / EC de los estanques) ────────────────────────────────
 
-export interface RegistrarMedicionNutricionParams {
+// La calibración de pH y la de EC se hacen en instancias distintas (no en el
+// mismo registro): dos acciones separadas, cada una con su propia prueba en
+// 1 L (ácido para pH, polvo A/B para EC).
+export interface RegistrarMedicionPhParams {
   estanqueId: EstanqueId;
   fecha: string;
   ph: number;
-  ec: number;
   litros: number;
   mlAcidoPor1L?: number;
+  autor?: string;
+}
+
+export function registrarMedicionPh(draft: EstadoInvernadero, p: RegistrarMedicionPhParams) {
+  if (!draft.nutricion) draft.nutricion = defaultNutricion();
+  draft.nutricion.mediciones.push({
+    id: draft.nextId++,
+    estanqueId: p.estanqueId,
+    tipo: 'ph',
+    fecha: p.fecha,
+    ph: p.ph,
+    litros: p.litros,
+    mlAcidoPor1L: p.mlAcidoPor1L,
+    mlAcidoSugerido: p.mlAcidoPor1L != null ? Math.round(p.mlAcidoPor1L * p.litros * 100) / 100 : undefined,
+    autor: p.autor,
+  });
+  log(draft, 'Calibración pH', `${estanqueNombre(p.estanqueId)}: pH ${p.ph}`, p.autor);
+}
+
+export interface RegistrarMedicionEcParams {
+  estanqueId: EstanqueId;
+  fecha: string;
+  ec: number;
+  litros: number;
   gramosAPor1L?: number;
   gramosBPor1L?: number;
   autor?: string;
 }
 
-export function registrarMedicionNutricion(draft: EstadoInvernadero, p: RegistrarMedicionNutricionParams) {
+export function registrarMedicionEc(draft: EstadoInvernadero, p: RegistrarMedicionEcParams) {
   if (!draft.nutricion) draft.nutricion = defaultNutricion();
   draft.nutricion.mediciones.push({
     id: draft.nextId++,
     estanqueId: p.estanqueId,
+    tipo: 'ec',
     fecha: p.fecha,
-    ph: p.ph,
     ec: p.ec,
     litros: p.litros,
-    mlAcidoPor1L: p.mlAcidoPor1L,
     gramosAPor1L: p.gramosAPor1L,
     gramosBPor1L: p.gramosBPor1L,
-    mlAcidoSugerido: p.mlAcidoPor1L != null ? Math.round(p.mlAcidoPor1L * p.litros * 100) / 100 : undefined,
     gramosASugerido: p.gramosAPor1L != null ? Math.round(p.gramosAPor1L * p.litros * 100) / 100 : undefined,
     gramosBSugerido: p.gramosBPor1L != null ? Math.round(p.gramosBPor1L * p.litros * 100) / 100 : undefined,
     autor: p.autor,
   });
-  log(draft, 'Calibración nutrición', `${estanqueNombre(p.estanqueId)}: pH ${p.ph} · EC ${p.ec} mS/cm`, p.autor);
+  log(draft, 'Calibración EC', `${estanqueNombre(p.estanqueId)}: EC ${p.ec} mS/cm`, p.autor);
 }
 
 export interface RegistrarRecambioAguaParams {

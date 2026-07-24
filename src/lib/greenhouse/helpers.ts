@@ -15,6 +15,7 @@ import type {
   NutricionConfig,
   PlanItem,
   RecambioAgua,
+  TipoMedicionNutricion,
   Variedad,
 } from './types';
 
@@ -389,7 +390,8 @@ export function defaultNutricionConfig(): NutricionConfig {
     // sugerido, editable por el operador en el módulo de Nutrición.
     ecVerano: 1.6,
     ecInvierno: 2.0,
-    periodicidadMedicionDias: { mesa_plantines: 3, principal: 3 },
+    periodicidadPhDias: { mesa_plantines: 3, principal: 3 },
+    periodicidadEcDias: { mesa_plantines: 3, principal: 3 },
     periodicidadRecambioDias: { mesa_plantines: 14, principal: 14 },
   };
 }
@@ -444,12 +446,24 @@ export function ecObjetivoActual(config: NutricionConfig, fecha: string = hoy())
   return esTemporadaVerano(fecha) ? config.ecVerano : config.ecInvierno;
 }
 
-export function medicionesDeEstanque(mediciones: MedicionNutricion[], estanqueId: EstanqueId): MedicionNutricion[] {
-  return (mediciones || []).filter((m) => m.estanqueId === estanqueId).sort((a, b) => a.fecha.localeCompare(b.fecha));
+// La calibración de pH y la de EC se hacen en instancias distintas (nunca en
+// el mismo registro): `tipo` filtra cuál de las dos series se quiere.
+export function medicionesDeEstanque(
+  mediciones: MedicionNutricion[],
+  estanqueId: EstanqueId,
+  tipo: TipoMedicionNutricion
+): MedicionNutricion[] {
+  return (mediciones || [])
+    .filter((m) => m.estanqueId === estanqueId && m.tipo === tipo)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
-export function ultimaMedicion(mediciones: MedicionNutricion[], estanqueId: EstanqueId): MedicionNutricion | null {
-  const serie = medicionesDeEstanque(mediciones, estanqueId);
+export function ultimaMedicion(
+  mediciones: MedicionNutricion[],
+  estanqueId: EstanqueId,
+  tipo: TipoMedicionNutricion
+): MedicionNutricion | null {
+  const serie = medicionesDeEstanque(mediciones, estanqueId, tipo);
   return serie.length ? serie[serie.length - 1] : null;
 }
 
@@ -470,31 +484,35 @@ export function proximaFechaEstanque(ultima: string | null, periodicidadDias: nu
 
 export interface PuntoNutricionLote {
   fecha: string;
-  ph: number;
-  ec: number;
+  valor: number;
   estanqueId: EstanqueId;
 }
 
-// Historial de pH/EC de un lote a lo largo de su ciclo de vida: mientras
-// estuvo en mesa de plantines toma las mediciones de ese estanque, y desde
-// que pasó a bancales toma las del estanque principal (los dos sistemas de
-// agua están físicamente separados). Se arma a partir de las calibraciones
-// reales de cada estanque, no de datos sintéticos por lote.
-export function serieNutricionLote(lote: Lote, mediciones: MedicionNutricion[]): PuntoNutricionLote[] {
+// Historial de pH (o de EC, según `tipo`) de un lote a lo largo de su ciclo
+// de vida: mientras estuvo en mesa de plantines toma las mediciones de ese
+// estanque, y desde que pasó a bancales toma las del estanque principal (los
+// dos sistemas de agua están físicamente separados). Se arma a partir de las
+// calibraciones reales de cada estanque, no de datos sintéticos por lote.
+export function serieNutricionLote(
+  lote: Lote,
+  mediciones: MedicionNutricion[],
+  tipo: TipoMedicionNutricion
+): PuntoNutricionLote[] {
   const salidaMesa = (lote.movimientos || []).find((m) => m.accion === '→ engorda')?.fecha ?? null;
   const puntos: PuntoNutricionLote[] = [];
   const finMesa = salidaMesa ?? hoy();
+  const valorDe = (m: MedicionNutricion) => (tipo === 'ph' ? m.ph! : m.ec!);
 
-  medicionesDeEstanque(mediciones, 'mesa_plantines')
+  medicionesDeEstanque(mediciones, 'mesa_plantines', tipo)
     .filter((m) => m.fecha >= lote.fechaInicio && m.fecha <= finMesa)
-    .forEach((m) => puntos.push({ fecha: m.fecha, ph: m.ph, ec: m.ec, estanqueId: m.estanqueId }));
+    .forEach((m) => puntos.push({ fecha: m.fecha, valor: valorDe(m), estanqueId: m.estanqueId }));
 
   if (salidaMesa) {
     const ultimoMov = lote.movimientos?.[lote.movimientos.length - 1];
     const fin = lote.etapa === 'cosechado' && ultimoMov ? ultimoMov.fecha : hoy();
-    medicionesDeEstanque(mediciones, 'principal')
+    medicionesDeEstanque(mediciones, 'principal', tipo)
       .filter((m) => m.fecha >= salidaMesa && m.fecha <= fin)
-      .forEach((m) => puntos.push({ fecha: m.fecha, ph: m.ph, ec: m.ec, estanqueId: m.estanqueId }));
+      .forEach((m) => puntos.push({ fecha: m.fecha, valor: valorDe(m), estanqueId: m.estanqueId }));
   }
 
   return puntos.sort((a, b) => a.fecha.localeCompare(b.fecha));

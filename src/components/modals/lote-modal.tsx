@@ -29,8 +29,12 @@ export function LoteModal() {
   const { displayName, email } = useCurrentUser();
   const autor = displayName || email || undefined;
   const lote = loteId != null ? state.lotes.find((l) => l.id === loteId) : null;
-  const serieNutricion = useMemo(
-    () => (lote ? serieNutricionLote(lote, state.nutricion.mediciones) : []),
+  const seriePh = useMemo(
+    () => (lote ? serieNutricionLote(lote, state.nutricion.mediciones, 'ph') : []),
+    [lote, state.nutricion.mediciones]
+  );
+  const serieEc = useMemo(
+    () => (lote ? serieNutricionLote(lote, state.nutricion.mediciones, 'ec') : []),
     [lote, state.nutricion.mediciones]
   );
 
@@ -168,43 +172,47 @@ export function LoteModal() {
             </div>
           )}
 
-          {serieNutricion.length > 0 && (
+          {(seriePh.length > 0 || serieEc.length > 0) && (
             <div className="grid gap-2">
               <h4 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <LineChartIcon className="size-3.5" />
                 pH / EC durante el ciclo
               </h4>
               <div className="grid grid-cols-2 gap-2">
-                <div className="h-[110px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={serieNutricion}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                      <XAxis dataKey="fecha" tickFormatter={(v: string) => fd(v)} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
-                      <YAxis domain={['dataMin - 0.3', 'dataMax + 0.3']} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={26} />
-                      <Tooltip
-                        labelFormatter={(v) => fd(String(v))}
-                        contentStyle={{ background: 'var(--popover)', color: 'var(--popover-foreground)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                        formatter={(value) => [Number(value).toFixed(1), 'pH']}
-                      />
-                      <Line type="linear" dataKey="ph" stroke="var(--primary)" strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="h-[110px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={serieNutricion}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                      <XAxis dataKey="fecha" tickFormatter={(v: string) => fd(v)} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
-                      <YAxis domain={['dataMin - 0.2', 'dataMax + 0.2']} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={26} />
-                      <Tooltip
-                        labelFormatter={(v) => fd(String(v))}
-                        contentStyle={{ background: 'var(--popover)', color: 'var(--popover-foreground)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                        formatter={(value) => [Number(value).toFixed(2), 'EC']}
-                      />
-                      <Line type="linear" dataKey="ec" stroke="#1D6FA4" strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                {seriePh.length > 0 && (
+                  <div className="h-[110px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={seriePh}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                        <XAxis dataKey="fecha" tickFormatter={(v: string) => fd(v)} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                        <YAxis domain={['dataMin - 0.3', 'dataMax + 0.3']} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={26} />
+                        <Tooltip
+                          labelFormatter={(v) => fd(String(v))}
+                          contentStyle={{ background: 'var(--popover)', color: 'var(--popover-foreground)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                          formatter={(value) => [Number(value).toFixed(1), 'pH']}
+                        />
+                        <Line type="linear" dataKey="valor" stroke="var(--primary)" strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                {serieEc.length > 0 && (
+                  <div className="h-[110px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={serieEc}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                        <XAxis dataKey="fecha" tickFormatter={(v: string) => fd(v)} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                        <YAxis domain={['dataMin - 0.2', 'dataMax + 0.2']} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={26} />
+                        <Tooltip
+                          labelFormatter={(v) => fd(String(v))}
+                          contentStyle={{ background: 'var(--popover)', color: 'var(--popover-foreground)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                          formatter={(value) => [Number(value).toFixed(2), 'EC']}
+                        />
+                        <Line type="linear" dataKey="valor" stroke="#1D6FA4" strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </div>
             </div>
           )}

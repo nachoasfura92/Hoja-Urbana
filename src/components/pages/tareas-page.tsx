@@ -22,7 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/dashboard/date-picker';
 import { TareaModal } from '@/components/modals/tarea-modal';
-import { CalibracionModal } from '@/components/modals/calibracion-modal';
+import { CalibracionModal, type CalibracionTarget } from '@/components/modals/calibracion-modal';
 import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals/resumen-registro-dialog';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
@@ -38,7 +38,6 @@ import {
 } from '@/lib/greenhouse/actions';
 import { estanqueNombre, fd, fracTubosStr, hoy, varLabelPorId } from '@/lib/greenhouse/helpers';
 import { bancalLabel, calcularTareasHoy, type TareaHoy } from '@/lib/greenhouse/tareas';
-import type { EstanqueId } from '@/lib/greenhouse/types';
 import { cn } from '@/lib/utils';
 
 type FiltroTipo = 'todas' | 'siembra' | 'trasplante' | 'nutricion';
@@ -53,7 +52,8 @@ const FILTRO_ITEMS: Record<FiltroTipo, string> = {
 function filtrarPorTipo(lista: TareaHoy[], filtro: FiltroTipo): TareaHoy[] {
   if (filtro === 'todas') return lista;
   if (filtro === 'siembra') return lista.filter((t) => t.tipo === 'sembrar');
-  if (filtro === 'nutricion') return lista.filter((t) => t.tipo === 'medicion_nutricion' || t.tipo === 'recambio_agua');
+  if (filtro === 'nutricion')
+    return lista.filter((t) => t.tipo === 'medicion_ph' || t.tipo === 'medicion_ec' || t.tipo === 'recambio_agua');
   return lista.filter((t) => t.tipo === 'traspaso_engorda' || t.tipo === 'traspaso_adulto');
 }
 
@@ -89,7 +89,7 @@ export function TareasPage() {
   const [posponiendo, setPosponiendo] = useState<TareaHoy | null>(null);
   const [nuevaFecha, setNuevaFecha] = useState(hoy());
   const [eliminando, setEliminando] = useState<TareaHoy | null>(null);
-  const [calibrando, setCalibrando] = useState<EstanqueId | null>(null);
+  const [calibrando, setCalibrando] = useState<CalibracionTarget | null>(null);
   const [filtroPendientes, setFiltroPendientes] = useState<FiltroTipo>('todas');
   const [filtroHoy, setFiltroHoy] = useState<FiltroTipo>('todas');
   const [filtroManana, setFiltroManana] = useState<FiltroTipo>('todas');
@@ -143,8 +143,8 @@ export function TareasPage() {
   // de hoy; si es de otro día (vencida o de mañana) pide confirmación con un
   // resumen antes de registrar (igual que cuando se edita la tarea).
   function completar(t: TareaHoy) {
-    if (t.tipo === 'medicion_nutricion') {
-      setCalibrando(t.estanqueId!);
+    if (t.tipo === 'medicion_ph' || t.tipo === 'medicion_ec') {
+      setCalibrando({ estanqueId: t.estanqueId!, tipo: t.tipo === 'medicion_ph' ? 'ph' : 'ec' });
       return;
     }
     if (t.tipo === 'recambio_agua') {
@@ -263,7 +263,7 @@ export function TareasPage() {
         />
       </div>
       <TareaModal tarea={editando} onClose={() => setEditando(null)} />
-      <CalibracionModal estanqueId={calibrando} onClose={() => setCalibrando(null)} />
+      <CalibracionModal target={calibrando} onClose={() => setCalibrando(null)} />
       <ResumenRegistroDialog resumen={resumen} onClose={() => setResumen(null)} />
 
       <Dialog open={!!posponiendo} onOpenChange={(o) => !o && setPosponiendo(null)}>
@@ -400,7 +400,7 @@ function TareaCard({
 }) {
   const { state } = useGreenhouse();
   const varLabelTarea = varLabelPorId(state.vars, t.varId);
-  const esNutricion = t.tipo === 'medicion_nutricion' || t.tipo === 'recambio_agua';
+  const esNutricion = t.tipo === 'medicion_ph' || t.tipo === 'medicion_ec' || t.tipo === 'recambio_agua';
   const sinEspacio = (t.tipo === 'traspaso_engorda' || t.tipo === 'traspaso_adulto') && !t.bancalSugerido;
 
   const contenido = (
@@ -409,7 +409,7 @@ function TareaCard({
       {(t.tipo === 'traspaso_engorda' || t.tipo === 'traspaso_adulto') && (
         <ArrowRightLeft className="mt-0.5 size-4 shrink-0 text-primary" />
       )}
-      {t.tipo === 'medicion_nutricion' && <Droplets className="mt-0.5 size-4 shrink-0 text-primary" />}
+      {(t.tipo === 'medicion_ph' || t.tipo === 'medicion_ec') && <Droplets className="mt-0.5 size-4 shrink-0 text-primary" />}
       {t.tipo === 'recambio_agua' && <RefreshCw className="mt-0.5 size-4 shrink-0 text-primary" />}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
@@ -425,7 +425,8 @@ function TareaCard({
             </>
           )}
           {t.tipo === 'traspaso_adulto' && `Traspasar ${varLabelTarea} (${bancalLabel(t.bancalOrigen ?? null)}) a adulto`}
-          {t.tipo === 'medicion_nutricion' && `Medir pH / EC — ${estanqueNombre(t.estanqueId!)}`}
+          {t.tipo === 'medicion_ph' && `Medir pH — ${estanqueNombre(t.estanqueId!)}`}
+          {t.tipo === 'medicion_ec' && `Medir EC — ${estanqueNombre(t.estanqueId!)}`}
           {t.tipo === 'recambio_agua' && `Recambio de agua — ${estanqueNombre(t.estanqueId!)}`}
           <EstadoBadge dias={t.diasRestantes} />
         </div>
@@ -469,7 +470,7 @@ function TareaCard({
             onClick={() => onCompletar(t)}
           >
             <ClipboardCheck className="size-3.5" />
-            {t.tipo === 'medicion_nutricion' ? 'Registrar' : 'Completar'}
+            {t.tipo === 'medicion_ph' || t.tipo === 'medicion_ec' ? 'Registrar' : 'Completar'}
           </Button>
           {!esNutricion && (
             <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => onEditar(t)}>

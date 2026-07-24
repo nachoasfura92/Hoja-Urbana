@@ -19,7 +19,7 @@ import {
 import { ESTANQUES } from './constants';
 import type { EstadoInvernadero, EstanqueId, Etapa } from './types';
 
-export type TareaTipo = 'sembrar' | 'traspaso_engorda' | 'traspaso_adulto' | 'medicion_nutricion' | 'recambio_agua';
+export type TareaTipo = 'sembrar' | 'traspaso_engorda' | 'traspaso_adulto' | 'medicion_ph' | 'medicion_ec' | 'recambio_agua';
 
 export interface TareaHoy {
   id: string;
@@ -41,7 +41,7 @@ export interface TareaHoy {
   bancalOrigen?: string | null;
   bancalSugerido?: string | null;
   etapaDestino?: Etapa;
-  // medicion_nutricion / recambio_agua
+  // medicion_ph / medicion_ec / recambio_agua
   estanqueId?: EstanqueId;
 }
 
@@ -133,16 +133,33 @@ export function calcularTareasHoy(state: EstadoInvernadero): TareaHoy[] {
   const nutricion = state.nutricion;
   if (nutricion) {
     ESTANQUES.forEach((e) => {
-      const freqMed = nutricion.config.periodicidadMedicionDias[e.id];
-      const ultimaMed = ultimaMedicion(nutricion.mediciones, e.id);
-      const proximaMed = proximaFechaEstanque(ultimaMed?.fecha ?? null, freqMed);
-      const diasMed = dr(proximaMed);
-      if (diasMed <= VENTANA_DIAS) {
+      const freqPh = nutricion.config.periodicidadPhDias[e.id];
+      const ultimaPh = ultimaMedicion(nutricion.mediciones, e.id, 'ph');
+      const proximaPh = proximaFechaEstanque(ultimaPh?.fecha ?? null, freqPh);
+      const diasPh = dr(proximaPh);
+      if (diasPh <= VENTANA_DIAS) {
         tareas.push({
-          id: `medicion_${e.id}_${proximaMed}`,
-          tipo: 'medicion_nutricion',
-          fechaObjetivo: proximaMed,
-          diasRestantes: diasMed,
+          id: `medicion_ph_${e.id}_${proximaPh}`,
+          tipo: 'medicion_ph',
+          fechaObjetivo: proximaPh,
+          diasRestantes: diasPh,
+          varId: 0,
+          varNom: '',
+          cantidadSugerida: 0,
+          estanqueId: e.id,
+        });
+      }
+
+      const freqEc = nutricion.config.periodicidadEcDias[e.id];
+      const ultimaEc = ultimaMedicion(nutricion.mediciones, e.id, 'ec');
+      const proximaEc = proximaFechaEstanque(ultimaEc?.fecha ?? null, freqEc);
+      const diasEc = dr(proximaEc);
+      if (diasEc <= VENTANA_DIAS) {
+        tareas.push({
+          id: `medicion_ec_${e.id}_${proximaEc}`,
+          tipo: 'medicion_ec',
+          fechaObjetivo: proximaEc,
+          diasRestantes: diasEc,
           varId: 0,
           varNom: '',
           cantidadSugerida: 0,

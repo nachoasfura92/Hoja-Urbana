@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { DatePicker } from '@/components/dashboard/date-picker';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
-import { registrarMedicionNutricion } from '@/lib/greenhouse/actions';
+import { registrarMedicionEc, registrarMedicionPh } from '@/lib/greenhouse/actions';
 import {
   defaultNutricionConfig,
   ecObjetivoActual,
@@ -18,14 +18,20 @@ import {
   estanqueNombre,
   hoy,
 } from '@/lib/greenhouse/helpers';
-import type { EstanqueId } from '@/lib/greenhouse/types';
+import type { EstanqueId, TipoMedicionNutricion } from '@/lib/greenhouse/types';
 
-// Calculadora de calibración: el operador primero hace una prueba agregando
-// ácido/polvo A/B a 1 L de solución hasta llegar al objetivo, registra cuánto
-// usó, y por regla de 3 esta calculadora sugiere cuánto agregar al estanque
-// completo. Al final registra el pH/EC ya medidos en el estanque (ese es el
-// punto que queda en el historial/gráfico).
-export function CalibracionModal({ estanqueId, onClose }: { estanqueId: EstanqueId | null; onClose: () => void }) {
+export interface CalibracionTarget {
+  estanqueId: EstanqueId;
+  tipo: TipoMedicionNutricion;
+}
+
+// Calculadora de calibración: pH y EC se calibran en instancias distintas
+// (nunca en el mismo registro), cada una con su propia prueba en 1 L — ácido
+// fosfórico para pH, polvo A/B para EC. El operador registra cuánto usó en
+// esa prueba, y por regla de 3 esta calculadora sugiere cuánto agregar al
+// estanque completo. Al final registra el valor ya medido en el estanque (ese
+// es el punto que queda en el historial/gráfico).
+export function CalibracionModal({ target, onClose }: { target: CalibracionTarget | null; onClose: () => void }) {
   const { state, update } = useGreenhouse();
   const { displayName, email } = useCurrentUser();
   const autor = displayName || email || undefined;
@@ -36,27 +42,27 @@ export function CalibracionModal({ estanqueId, onClose }: { estanqueId: Estanque
   const [mlAcido, setMlAcido] = useState('');
   const [gramosA, setGramosA] = useState('');
   const [gramosB, setGramosB] = useState('');
-  const [phFinal, setPhFinal] = useState('');
-  const [ecFinal, setEcFinal] = useState('');
+  const [valorFinal, setValorFinal] = useState('');
 
-  // Reinicializa el formulario cuando se abre un estanque distinto (patrón
-  // "ajustar estado durante el render" en vez de un efecto).
-  const [lastEstanqueId, setLastEstanqueId] = useState<EstanqueId | null>(null);
-  if (estanqueId && estanqueId !== lastEstanqueId) {
-    setLastEstanqueId(estanqueId);
+  // Reinicializa el formulario cuando se abre un estanque/tipo distinto
+  // (patrón "ajustar estado durante el render" en vez de un efecto).
+  const [lastKey, setLastKey] = useState<string | null>(null);
+  const key = target ? `${target.estanqueId}_${target.tipo}` : null;
+  if (target && key !== lastKey) {
+    setLastKey(key);
     setFecha(hoy());
-    setLitros(estanqueLitrosBase(estanqueId));
+    setLitros(estanqueLitrosBase(target.estanqueId));
     setMlAcido('');
     setGramosA('');
     setGramosB('');
-    setPhFinal('');
-    setEcFinal('');
+    setValorFinal('');
   }
 
-  if (!estanqueId) {
+  if (!target) {
     return <Dialog open={false} onOpenChange={() => onClose()} />;
   }
 
+  const esPh = target.tipo === 'ph';
   const mlAcidoNum = mlAcido ? parseFloat(mlAcido) : null;
   const gramosANum = gramosA ? parseFloat(gramosA) : null;
   const gramosBNum = gramosB ? parseFloat(gramosB) : null;
@@ -65,36 +71,55 @@ export function CalibracionModal({ estanqueId, onClose }: { estanqueId: Estanque
   const gramosBSugerido = gramosBNum != null ? Math.round(gramosBNum * litros * 100) / 100 : null;
 
   const ecObjetivo = ecObjetivoActual(config, fecha);
-  const puedeRegistrar = litros > 0 && phFinal !== '' && ecFinal !== '';
+  const puedeRegistrar = litros > 0 && valorFinal !== '';
 
   function handleRegistrar() {
-    if (!puedeRegistrar) return;
-    update((draft) =>
-      registrarMedicionNutricion(draft, {
-        estanqueId: estanqueId!,
-        fecha,
-        ph: parseFloat(phFinal),
-        ec: parseFloat(ecFinal),
-        litros,
-        mlAcidoPor1L: mlAcidoNum ?? undefined,
-        gramosAPor1L: gramosANum ?? undefined,
-        gramosBPor1L: gramosBNum ?? undefined,
-        autor,
-      })
-    );
+    if (!puedeRegistrar || !target) return;
+    if (esPh) {
+      update((draft) =>
+        registrarMedicionPh(draft, {
+          estanqueId: target.estanqueId,
+          fecha,
+          ph: parseFloat(valorFinal),
+          litros,
+          mlAcidoPor1L: mlAcidoNum ?? undefined,
+          autor,
+        })
+      );
+    } else {
+      update((draft) =>
+        registrarMedicionEc(draft, {
+          estanqueId: target.estanqueId,
+          fecha,
+          ec: parseFloat(valorFinal),
+          litros,
+          gramosAPor1L: gramosANum ?? undefined,
+          gramosBPor1L: gramosBNum ?? undefined,
+          autor,
+        })
+      );
+    }
     onClose();
   }
 
   return (
-    <Dialog open={!!estanqueId} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={!!target} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Calibración — {estanqueNombre(estanqueId)}</DialogTitle>
+          <DialogTitle>
+            Calibración de {esPh ? 'pH' : 'EC'} — {estanqueNombre(target.estanqueId)}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-3">
           <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-            Objetivo sugerido: pH {config.phMin}–{config.phMax} · EC {ecObjetivo} mS/cm ({esTemporadaVerano(fecha) ? 'temporada verano' : 'temporada invierno'})
+            {esPh ? (
+              <>Objetivo sugerido: pH {config.phMin}–{config.phMax}</>
+            ) : (
+              <>
+                Objetivo sugerido: EC {ecObjetivo} mS/cm ({esTemporadaVerano(fecha) ? 'temporada verano' : 'temporada invierno'})
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -110,24 +135,27 @@ export function CalibracionModal({ estanqueId, onClose }: { estanqueId: Estanque
 
           <Separator />
           <p className="text-xs text-muted-foreground">
-            1. Prueba: agrega ácido / polvo A / polvo B a <strong>1 litro</strong> de solución hasta llegar al objetivo, y
-            registra cuánto usaste.
+            1. Prueba: agrega {esPh ? 'ácido fosfórico' : 'polvo A y polvo B'} a <strong>1 litro</strong> de solución
+            hasta llegar al objetivo, y registra cuánto usaste.
           </p>
 
-          <div className="grid grid-cols-3 gap-3">
+          {esPh ? (
             <div className="grid gap-1.5">
               <Label>Ác. fosfórico (ml/1L)</Label>
               <Input type="number" min={0} step="0.1" placeholder="0" value={mlAcido} onChange={(e) => setMlAcido(e.target.value)} />
             </div>
-            <div className="grid gap-1.5">
-              <Label>Polvo A (g/1L)</Label>
-              <Input type="number" min={0} step="0.1" placeholder="0" value={gramosA} onChange={(e) => setGramosA(e.target.value)} />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>Polvo A (g/1L)</Label>
+                <Input type="number" min={0} step="0.1" placeholder="0" value={gramosA} onChange={(e) => setGramosA(e.target.value)} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Polvo B (g/1L)</Label>
+                <Input type="number" min={0} step="0.1" placeholder="0" value={gramosB} onChange={(e) => setGramosB(e.target.value)} />
+              </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label>Polvo B (g/1L)</Label>
-              <Input type="number" min={0} step="0.1" placeholder="0" value={gramosB} onChange={(e) => setGramosB(e.target.value)} />
-            </div>
-          </div>
+          )}
 
           {(mlSugerido != null || gramosASugerido != null || gramosBSugerido != null) && (
             <div className="grid gap-1 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
@@ -154,17 +182,18 @@ export function CalibracionModal({ estanqueId, onClose }: { estanqueId: Estanque
 
           <Separator />
           <p className="text-xs text-muted-foreground">
-            2. Luego de aplicar la dosis al estanque completo, mide y registra el pH y la EC finales.
+            2. Luego de aplicar la dosis al estanque completo, mide y registra el {esPh ? 'pH' : 'EC'} final.
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>pH final medido</Label>
-              <Input type="number" min={0} step="0.1" placeholder="Ej: 6.0" value={phFinal} onChange={(e) => setPhFinal(e.target.value)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label>EC final medida (mS/cm)</Label>
-              <Input type="number" min={0} step="0.1" placeholder="Ej: 1.8" value={ecFinal} onChange={(e) => setEcFinal(e.target.value)} />
-            </div>
+          <div className="grid gap-1.5">
+            <Label>{esPh ? 'pH final medido' : 'EC final medida (mS/cm)'}</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.1"
+              placeholder={esPh ? 'Ej: 6.0' : 'Ej: 1.8'}
+              value={valorFinal}
+              onChange={(e) => setValorFinal(e.target.value)}
+            />
           </div>
         </div>
 
@@ -173,7 +202,7 @@ export function CalibracionModal({ estanqueId, onClose }: { estanqueId: Estanque
             Cancelar
           </Button>
           <Button onClick={handleRegistrar} disabled={!puedeRegistrar}>
-            Registrar calibración
+            Registrar calibración de {esPh ? 'pH' : 'EC'}
           </Button>
         </DialogFooter>
       </DialogContent>

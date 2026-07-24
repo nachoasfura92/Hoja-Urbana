@@ -101,20 +101,25 @@ export interface CosechaRecord {
 // solo estanque principal.
 export type EstanqueId = 'mesa_plantines' | 'principal';
 
-// Cada calibración registra la prueba en 1 L (ml de ácido / gramos de polvo A
-// y B usados para llegar al objetivo) y el pH/EC final ya medidos en el
-// estanque completo, luego de aplicar la dosis sugerida por regla de 3.
+// La calibración de pH y la de EC se hacen en instancias distintas (el
+// operador no las mide ni ajusta al mismo tiempo): cada registro es de un
+// solo tipo, con la prueba en 1 L correspondiente (ml de ácido para pH,
+// gramos de polvo A/B para EC) y el valor final ya medido en el estanque
+// completo, luego de aplicar la dosis sugerida por regla de 3.
+export type TipoMedicionNutricion = 'ph' | 'ec';
+
 export interface MedicionNutricion {
   id: number;
   estanqueId: EstanqueId;
+  tipo: TipoMedicionNutricion;
   fecha: string; // ISO date
-  ph: number;
-  ec: number; // mS/cm
+  ph?: number; // presente solo si tipo === 'ph'
+  ec?: number; // mS/cm, presente solo si tipo === 'ec'
   litros: number;
-  mlAcidoPor1L?: number;
-  gramosAPor1L?: number;
-  gramosBPor1L?: number;
+  mlAcidoPor1L?: number; // solo tipo 'ph'
   mlAcidoSugerido?: number;
+  gramosAPor1L?: number; // solo tipo 'ec'
+  gramosBPor1L?: number;
   gramosASugerido?: number;
   gramosBSugerido?: number;
   autor?: string;
@@ -132,7 +137,8 @@ export interface NutricionConfig {
   phMax: number;
   ecVerano: number;
   ecInvierno: number;
-  periodicidadMedicionDias: Record<EstanqueId, number>;
+  periodicidadPhDias: Record<EstanqueId, number>;
+  periodicidadEcDias: Record<EstanqueId, number>;
   periodicidadRecambioDias: Record<EstanqueId, number>;
 }
 

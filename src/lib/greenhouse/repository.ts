@@ -178,24 +178,28 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     autor: c.autor ?? undefined,
   }));
 
-  const periodicidadMedicionDias = {} as Record<EstanqueId, number>;
+  const periodicidadPhDias = {} as Record<EstanqueId, number>;
+  const periodicidadEcDias = {} as Record<EstanqueId, number>;
   const periodicidadRecambioDias = {} as Record<EstanqueId, number>;
   ESTANQUES.forEach((e) => {
-    periodicidadMedicionDias[e.id] = 3;
+    periodicidadPhDias[e.id] = 3;
+    periodicidadEcDias[e.id] = 3;
     periodicidadRecambioDias[e.id] = 14;
   });
   (nutricionEstanqueConfigRes.data || []).forEach((e) => {
     const id = e.estanque_id as EstanqueId;
-    periodicidadMedicionDias[id] = e.periodicidad_medicion_dias;
+    periodicidadPhDias[id] = e.periodicidad_ph_dias;
+    periodicidadEcDias[id] = e.periodicidad_ec_dias;
     periodicidadRecambioDias[id] = e.periodicidad_recambio_dias;
   });
 
   const mediciones: MedicionNutricion[] = (nutricionMedicionesRes.data || []).map((m) => ({
     id: m.id,
     estanqueId: m.estanque_id,
+    tipo: m.tipo,
     fecha: m.fecha,
-    ph: m.ph,
-    ec: m.ec,
+    ph: m.ph ?? undefined,
+    ec: m.ec ?? undefined,
     litros: m.litros,
     mlAcidoPor1L: m.ml_acido_por_1l ?? undefined,
     gramosAPor1L: m.gramos_a_por_1l ?? undefined,
@@ -220,7 +224,8 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
       phMax: nutricionConfigRes.data?.ph_max ?? nutricionDefault.phMax,
       ecVerano: nutricionConfigRes.data?.ec_verano ?? nutricionDefault.ecVerano,
       ecInvierno: nutricionConfigRes.data?.ec_invierno ?? nutricionDefault.ecInvierno,
-      periodicidadMedicionDias,
+      periodicidadPhDias,
+      periodicidadEcDias,
       periodicidadRecambioDias,
     },
     mediciones,
@@ -363,7 +368,8 @@ export async function guardarEstadoEnTablas(supabase: DB, state: EstadoInvernade
 
   const estanqueConfigRows = ESTANQUES.map((e) => ({
     estanque_id: e.id,
-    periodicidad_medicion_dias: nutricion.config.periodicidadMedicionDias[e.id],
+    periodicidad_ph_dias: nutricion.config.periodicidadPhDias[e.id],
+    periodicidad_ec_dias: nutricion.config.periodicidadEcDias[e.id],
     periodicidad_recambio_dias: nutricion.config.periodicidadRecambioDias[e.id],
   }));
   const { error: errorEstanqueConfig } = await supabase
@@ -374,9 +380,10 @@ export async function guardarEstadoEnTablas(supabase: DB, state: EstadoInvernade
   const medicionRows = nutricion.mediciones.map((m) => ({
     id: m.id,
     estanque_id: m.estanqueId,
+    tipo: m.tipo,
     fecha: m.fecha,
-    ph: m.ph,
-    ec: m.ec,
+    ph: m.ph ?? null,
+    ec: m.ec ?? null,
     litros: m.litros,
     ml_acido_por_1l: m.mlAcidoPor1L ?? null,
     gramos_a_por_1l: m.gramosAPor1L ?? null,
