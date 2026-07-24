@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertRow } from '@/components/dashboard/alert-row';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { adjustCubos, adjustSemillas } from '@/lib/greenhouse/actions';
-import { diasHastaCero, fd, fmas, gv, hoy, serieAgotamiento, serieAgotamientoCubos, varLabel } from '@/lib/greenhouse/helpers';
+import { diasHastaCero, fd, fmas, gv, hoy, serieAgotamiento, serieAgotamientoCubos, varLabel, varLabelPorId } from '@/lib/greenhouse/helpers';
 import { cn } from '@/lib/utils';
 
 const VENTANA_DIAS = 90;
@@ -200,7 +200,7 @@ export function InventarioPage() {
                   className={cn('rounded-md text-left transition-shadow', seleccionado && 'ring-2 ring-primary')}
                 >
                   <AlertRow kind={d != null && d <= 14 ? 'warning' : 'success'} icon={LeafyGreen}>
-                    <strong>{p.varNom}</strong> — {sem} semillas · plan: {p.plantas} cada{' '}
+                    <strong>{varLabelPorId(state.vars, p.varId)}</strong> — {sem} semillas · plan: {p.plantas} cada{' '}
                     {p.freq === 1 ? 'día' : `${p.freq} días`}
                     <br />
                     {d == null ? (
@@ -258,7 +258,7 @@ export function InventarioPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
               <LineChartIcon className="size-4 text-muted-foreground" />
-              Proyección de stock — {selectedPlan.varNom}
+              Proyección de stock — {varLabelPorId(state.vars, selectedPlan.varId)}
             </CardTitle>
           </CardHeader>
           <CardContent>

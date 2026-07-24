@@ -1,6 +1,14 @@
 // Constantes idénticas a la app original.
 
+import type { EstanqueId } from './types';
+
 export const PT = 30; // plantas por tubo
+
+// Los dos sistemas de agua físicos del invernadero (ver types.ts EstanqueId).
+export const ESTANQUES: { id: EstanqueId; nombre: string; litros: number }[] = [
+  { id: 'mesa_plantines', nombre: 'Mesa de plantines', litros: 650 },
+  { id: 'principal', nombre: 'Estanque principal (bancales)', litros: 2400 },
+];
 
 export const COLORS_VAR = [
   '#2A7D2E',
@@ -35,6 +43,7 @@ export type TabId =
   | 'venta'
   | 'plan'
   | 'inventario'
+  | 'nutricion'
   | 'variedades'
   | 'cosechas'
   | 'historial';
@@ -48,6 +57,7 @@ export const TITLES: Record<TabId, string> = {
   venta: 'Calendario de venta',
   plan: 'Plan de siembra',
   inventario: 'Inventario',
+  nutricion: 'Nutrición',
   variedades: 'Variedades',
   cosechas: 'Historial de cosechas',
   historial: 'Historial',

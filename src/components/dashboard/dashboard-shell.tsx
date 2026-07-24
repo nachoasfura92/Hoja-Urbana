@@ -21,6 +21,7 @@ import { BancalesPage } from '@/components/pages/bancales-page';
 import { VentaPage } from '@/components/pages/venta-page';
 import { PlanPage } from '@/components/pages/plan-page';
 import { InventarioPage } from '@/components/pages/inventario-page';
+import { NutricionPage } from '@/components/pages/nutricion-page';
 import { VariedadesPage } from '@/components/pages/variedades-page';
 import { CosechasPage } from '@/components/pages/cosechas-page';
 import { HistorialPage } from '@/components/pages/historial-page';
@@ -38,6 +39,7 @@ const TABS: TabId[] = [
   'venta',
   'plan',
   'inventario',
+  'nutricion',
   'variedades',
   'cosechas',
   'historial',
@@ -104,6 +106,7 @@ function DashboardContent({ userEmail }: { userEmail?: string | null }) {
                 {tab === 'bancales' && <BancalesPage />}
                 {tab === 'plan' && <PlanPage />}
                 {tab === 'inventario' && <InventarioPage />}
+                {tab === 'nutricion' && <NutricionPage />}
                 {tab === 'variedades' && <VariedadesPage />}
                 {tab === 'cosechas' && <CosechasPage />}
                 {tab === 'historial' && <HistorialPage />}

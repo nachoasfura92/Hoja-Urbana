@@ -11,7 +11,7 @@ import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { EtapaBadge } from '@/components/dashboard/etapa-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
-import { buscarLotes, dd, dr, fracTubosStr, varLabel } from '@/lib/greenhouse/helpers';
+import { buscarLotes, dd, dr, fracTubosStr, varLabel, varLabelPorId } from '@/lib/greenhouse/helpers';
 
 function formatBancal(bancalId: string | null): string {
   if (!bancalId) return 'Sin bancal asignado';
@@ -137,7 +137,7 @@ export function SearchLotes() {
                     <div>
                       <div className="flex items-center gap-1.5 text-sm font-medium">
                         <BanderaBadge numero={l.bandera} />
-                        {l.varNom}
+                        {varLabelPorId(state.vars, l.varId)}
                         <EtapaBadge etapa={l.etapa} />
                       </div>
                       <div className="text-xs text-muted-foreground">

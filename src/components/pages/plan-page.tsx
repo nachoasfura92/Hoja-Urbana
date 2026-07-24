@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { addPlanItem, deletePlanItem, editPlanItem } from '@/lib/greenhouse/actions';
-import { dd, fd, gv, planVence, varLabel } from '@/lib/greenhouse/helpers';
+import { dd, fd, gv, planVence, varLabel, varLabelPorId } from '@/lib/greenhouse/helpers';
 import type { PlanItem } from '@/lib/greenhouse/types';
 
 const FRECUENCIAS = [
@@ -242,7 +242,7 @@ export function PlanPage() {
                 <CardContent className="flex items-center justify-between gap-2 px-3.5 py-2.5">
                   <div>
                     <div className="flex items-center gap-1.5 text-sm font-medium">
-                      {p.varNom}
+                      {varLabelPorId(state.vars, p.varId)}
                       <Badge
                         variant="outline"
                         className={

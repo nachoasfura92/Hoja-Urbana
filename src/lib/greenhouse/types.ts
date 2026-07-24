@@ -95,6 +95,53 @@ export interface CosechaRecord {
   autor?: string;
 }
 
+// ── Nutrición (pH / EC de los estanques) ──────────────────────────────────
+// Dos sistemas de agua físicamente separados: la mesa de plantines tiene su
+// propio estanque chico, y todos los bancales (engorda + adulto) comparten un
+// solo estanque principal.
+export type EstanqueId = 'mesa_plantines' | 'principal';
+
+// Cada calibración registra la prueba en 1 L (ml de ácido / gramos de polvo A
+// y B usados para llegar al objetivo) y el pH/EC final ya medidos en el
+// estanque completo, luego de aplicar la dosis sugerida por regla de 3.
+export interface MedicionNutricion {
+  id: number;
+  estanqueId: EstanqueId;
+  fecha: string; // ISO date
+  ph: number;
+  ec: number; // mS/cm
+  litros: number;
+  mlAcidoPor1L?: number;
+  gramosAPor1L?: number;
+  gramosBPor1L?: number;
+  mlAcidoSugerido?: number;
+  gramosASugerido?: number;
+  gramosBSugerido?: number;
+  autor?: string;
+}
+
+export interface RecambioAgua {
+  id: number;
+  estanqueId: EstanqueId;
+  fecha: string;
+  autor?: string;
+}
+
+export interface NutricionConfig {
+  phMin: number;
+  phMax: number;
+  ecVerano: number;
+  ecInvierno: number;
+  periodicidadMedicionDias: Record<EstanqueId, number>;
+  periodicidadRecambioDias: Record<EstanqueId, number>;
+}
+
+export interface Nutricion {
+  config: NutricionConfig;
+  mediciones: MedicionNutricion[];
+  recambios: RecambioAgua[];
+}
+
 export interface EstadoInvernadero {
   vars: Variedad[];
   lotes: Lote[];
@@ -104,5 +151,6 @@ export interface EstadoInvernadero {
   merma: Merma;
   historial: HistorialEntry[];
   cosechas: CosechaRecord[];
+  nutricion: Nutricion;
   nextId: number;
 }

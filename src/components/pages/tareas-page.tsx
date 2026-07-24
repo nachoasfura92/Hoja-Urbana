@@ -1,29 +1,60 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowRightLeft, CheckCircle2, ChevronDown, ClipboardCheck, Flag, Pencil, Sprout } from 'lucide-react';
+import {
+  ArrowRightLeft,
+  CalendarClock,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardCheck,
+  Droplets,
+  Flag,
+  Pencil,
+  RefreshCw,
+  Sprout,
+  Trash2,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePicker } from '@/components/dashboard/date-picker';
 import { TareaModal } from '@/components/modals/tarea-modal';
+import { CalibracionModal } from '@/components/modals/calibracion-modal';
 import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals/resumen-registro-dialog';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
-import { confirmarSiembra, ejecutarMovimiento } from '@/lib/greenhouse/actions';
-import { fd, fracTubosStr, hoy } from '@/lib/greenhouse/helpers';
+import {
+  confirmarSiembra,
+  deleteLote,
+  deletePlanItem,
+  ejecutarMovimiento,
+  posponerSiembra,
+  posponerTraspaso,
+  registrarRecambioAgua,
+} from '@/lib/greenhouse/actions';
+import { estanqueNombre, fd, fracTubosStr, hoy, varLabelPorId } from '@/lib/greenhouse/helpers';
 import { bancalLabel, calcularTareasHoy, type TareaHoy } from '@/lib/greenhouse/tareas';
+import type { EstanqueId } from '@/lib/greenhouse/types';
 import { cn } from '@/lib/utils';
 
-type FiltroTipo = 'todas' | 'siembra' | 'trasplante';
+type FiltroTipo = 'todas' | 'siembra' | 'trasplante' | 'nutricion';
 
-const FILTRO_ITEMS: Record<FiltroTipo, string> = { todas: 'Todas', siembra: 'Siembra', trasplante: 'Trasplantes' };
+const FILTRO_ITEMS: Record<FiltroTipo, string> = {
+  todas: 'Todas',
+  siembra: 'Siembra',
+  trasplante: 'Trasplantes',
+  nutricion: 'Nutrición',
+};
 
 function filtrarPorTipo(lista: TareaHoy[], filtro: FiltroTipo): TareaHoy[] {
   if (filtro === 'todas') return lista;
   if (filtro === 'siembra') return lista.filter((t) => t.tipo === 'sembrar');
-  return lista.filter((t) => t.tipo !== 'sembrar');
+  if (filtro === 'nutricion') return lista.filter((t) => t.tipo === 'medicion_nutricion' || t.tipo === 'recambio_agua');
+  return lista.filter((t) => t.tipo === 'traspaso_engorda' || t.tipo === 'traspaso_adulto');
 }
 
 function EstadoBadge({ dias }: { dias: number }) {
@@ -55,6 +86,10 @@ export function TareasPage() {
   const autor = displayName || email || undefined;
   const [editando, setEditando] = useState<TareaHoy | null>(null);
   const [resumen, setResumen] = useState<ResumenRegistro | null>(null);
+  const [posponiendo, setPosponiendo] = useState<TareaHoy | null>(null);
+  const [nuevaFecha, setNuevaFecha] = useState(hoy());
+  const [eliminando, setEliminando] = useState<TareaHoy | null>(null);
+  const [calibrando, setCalibrando] = useState<EstanqueId | null>(null);
   const [filtroPendientes, setFiltroPendientes] = useState<FiltroTipo>('todas');
   const [filtroHoy, setFiltroHoy] = useState<FiltroTipo>('todas');
   const [filtroManana, setFiltroManana] = useState<FiltroTipo>('todas');
@@ -100,10 +135,33 @@ export function TareasPage() {
     );
   }
 
+  function ejecutarRecambio(t: TareaHoy) {
+    update((draft) => registrarRecambioAgua(draft, { estanqueId: t.estanqueId!, fecha: hoy(), autor }));
+  }
+
   // "Completar" con los valores sugeridos ejecuta directo solo si la tarea es
   // de hoy; si es de otro día (vencida o de mañana) pide confirmación con un
   // resumen antes de registrar (igual que cuando se edita la tarea).
   function completar(t: TareaHoy) {
+    if (t.tipo === 'medicion_nutricion') {
+      setCalibrando(t.estanqueId!);
+      return;
+    }
+    if (t.tipo === 'recambio_agua') {
+      if (t.diasRestantes === 0) {
+        ejecutarRecambio(t);
+        return;
+      }
+      setResumen({
+        titulo: `Confirmar recambio de agua — ${estanqueNombre(t.estanqueId!)}`,
+        filas: [
+          { label: 'Estanque', value: estanqueNombre(t.estanqueId!) },
+          { label: 'Fecha', value: fd(hoy()) },
+        ],
+        ejecutar: () => ejecutarRecambio(t),
+      });
+      return;
+    }
     if (t.diasRestantes === 0) {
       if (t.tipo === 'sembrar') ejecutarSembrar(t);
       else ejecutarTraspaso(t);
@@ -111,7 +169,7 @@ export function TareasPage() {
     }
     if (t.tipo === 'sembrar') {
       setResumen({
-        titulo: `Confirmar siembra — ${t.varNom}`,
+        titulo: `Confirmar siembra — ${varLabelPorId(state.vars, t.varId)}`,
         filas: [
           { label: 'Cantidad', value: `${t.cantidadSugerida} plantas (${fracTubosStr(t.cantidadSugerida)} tubos)` },
           { label: 'Fecha', value: fd(hoy()) },
@@ -126,15 +184,46 @@ export function TareasPage() {
       titulo:
         t.tipo === 'traspaso_engorda'
           ? `Confirmar traspaso a engorda — bandera N°${t.bandera}`
-          : `Confirmar traspaso a adulto — ${t.varNom}`,
+          : `Confirmar traspaso a adulto — ${varLabelPorId(state.vars, t.varId)}`,
       filas: [
-        { label: 'Variedad', value: t.varNom },
+        { label: 'Variedad', value: varLabelPorId(state.vars, t.varId) },
         { label: 'Cantidad', value: `${t.cantidadSugerida} plantas (${fracTubosStr(t.cantidadSugerida)} tubos)` },
         { label: 'Fecha', value: fd(hoy()) },
         { label: 'Bancal destino', value: bancalLabel(t.bancalSugerido) },
       ],
       ejecutar: () => ejecutarTraspaso(t),
     });
+  }
+
+  function abrirPosponer(t: TareaHoy) {
+    setNuevaFecha(hoy());
+    setPosponiendo(t);
+  }
+
+  function confirmarPosponer() {
+    if (!posponiendo) return;
+    update((draft) => {
+      if (posponiendo.tipo === 'sembrar') {
+        posponerSiembra(draft, { planId: posponiendo.planId!, nuevaFecha, autor });
+      } else {
+        posponerTraspaso(draft, {
+          loteId: posponiendo.loteId!,
+          campo: posponiendo.tipo === 'traspaso_engorda' ? 'dp' : 'de',
+          nuevaFecha,
+          autor,
+        });
+      }
+    });
+    setPosponiendo(null);
+  }
+
+  function confirmarEliminar() {
+    if (!eliminando) return;
+    update((draft) => {
+      if (eliminando.tipo === 'sembrar') deletePlanItem(draft, eliminando.planId!);
+      else deleteLote(draft, eliminando.loteId!);
+    });
+    setEliminando(null);
   }
 
   return (
@@ -159,6 +248,8 @@ export function TareasPage() {
           onCompletar={completar}
           onEditar={setEditando}
           onVerLote={openLote}
+          onPosponer={abrirPosponer}
+          onEliminar={setEliminando}
         />
         <TareasBox
           titulo="Tareas de mañana"
@@ -172,7 +263,47 @@ export function TareasPage() {
         />
       </div>
       <TareaModal tarea={editando} onClose={() => setEditando(null)} />
+      <CalibracionModal estanqueId={calibrando} onClose={() => setCalibrando(null)} />
       <ResumenRegistroDialog resumen={resumen} onClose={() => setResumen(null)} />
+
+      <Dialog open={!!posponiendo} onOpenChange={(o) => !o && setPosponiendo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modificar fecha de la tarea</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-1.5">
+            <Label>Nueva fecha objetivo</Label>
+            <DatePicker value={nuevaFecha} onChange={setNuevaFecha} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPosponiendo(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarPosponer}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!eliminando} onOpenChange={(o) => !o && setEliminando(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar tarea vencida</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {eliminando?.tipo === 'sembrar'
+              ? 'Se eliminará por completo este ítem del plan de siembra (no solo la tarea de hoy): dejará de generar nuevas tareas de siembra.'
+              : 'Se eliminará el lote asociado a esta tarea de traspaso, junto con su historial.'}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEliminando(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarEliminar}>
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -186,6 +317,8 @@ function TareasBox({
   onCompletar,
   onEditar,
   onVerLote,
+  onPosponer,
+  onEliminar,
 }: {
   titulo: string;
   tareas: TareaHoy[];
@@ -195,6 +328,8 @@ function TareasBox({
   onCompletar: (t: TareaHoy) => void;
   onEditar: (t: TareaHoy) => void;
   onVerLote: (id: number) => void;
+  onPosponer?: (t: TareaHoy) => void;
+  onEliminar?: (t: TareaHoy) => void;
 }) {
   const [open, setOpen] = useState(true);
 
@@ -218,6 +353,7 @@ function TareasBox({
             <SelectItem value="todas">Todas</SelectItem>
             <SelectItem value="siembra">Siembra</SelectItem>
             <SelectItem value="trasplante">Trasplantes</SelectItem>
+            <SelectItem value="nutricion">Nutrición</SelectItem>
           </SelectContent>
         </Select>
       </CardHeader>
@@ -225,7 +361,15 @@ function TareasBox({
         <CardContent className="grid gap-2">
           {tareas.length ? (
             tareas.map((t) => (
-              <TareaCard key={t.id} tarea={t} onCompletar={onCompletar} onEditar={onEditar} onVerLote={onVerLote} />
+              <TareaCard
+                key={t.id}
+                tarea={t}
+                onCompletar={onCompletar}
+                onEditar={onEditar}
+                onVerLote={onVerLote}
+                onPosponer={onPosponer}
+                onEliminar={onEliminar}
+              />
             ))
           ) : (
             <div className="flex flex-col items-center gap-1.5 py-8 text-center">
@@ -244,24 +388,32 @@ function TareaCard({
   onCompletar,
   onEditar,
   onVerLote,
+  onPosponer,
+  onEliminar,
 }: {
   tarea: TareaHoy;
   onCompletar: (t: TareaHoy) => void;
   onEditar: (t: TareaHoy) => void;
   onVerLote: (id: number) => void;
+  onPosponer?: (t: TareaHoy) => void;
+  onEliminar?: (t: TareaHoy) => void;
 }) {
-  const sinEspacio = t.tipo !== 'sembrar' && !t.bancalSugerido;
+  const { state } = useGreenhouse();
+  const varLabelTarea = varLabelPorId(state.vars, t.varId);
+  const esNutricion = t.tipo === 'medicion_nutricion' || t.tipo === 'recambio_agua';
+  const sinEspacio = (t.tipo === 'traspaso_engorda' || t.tipo === 'traspaso_adulto') && !t.bancalSugerido;
 
   const contenido = (
     <div className="flex items-start gap-2.5">
-      {t.tipo === 'sembrar' ? (
-        <Sprout className="mt-0.5 size-4 shrink-0 text-success" />
-      ) : (
+      {t.tipo === 'sembrar' && <Sprout className="mt-0.5 size-4 shrink-0 text-success" />}
+      {(t.tipo === 'traspaso_engorda' || t.tipo === 'traspaso_adulto') && (
         <ArrowRightLeft className="mt-0.5 size-4 shrink-0 text-primary" />
       )}
-      <div>
+      {t.tipo === 'medicion_nutricion' && <Droplets className="mt-0.5 size-4 shrink-0 text-primary" />}
+      {t.tipo === 'recambio_agua' && <RefreshCw className="mt-0.5 size-4 shrink-0 text-primary" />}
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
-          {t.tipo === 'sembrar' && `Sembrar ${t.varNom}`}
+          {t.tipo === 'sembrar' && `Sembrar ${varLabelTarea}`}
           {t.tipo === 'traspaso_engorda' && (
             <>
               Traspasar lote
@@ -269,17 +421,24 @@ function TareaCard({
                 <Flag className="size-3" fill="currentColor" />
                 {t.bandera}
               </span>
-              ({t.varNom}) a engorda
+              ({varLabelTarea}) a engorda
             </>
           )}
-          {t.tipo === 'traspaso_adulto' && `Traspasar ${t.varNom} (${bancalLabel(t.bancalOrigen ?? null)}) a adulto`}
+          {t.tipo === 'traspaso_adulto' && `Traspasar ${varLabelTarea} (${bancalLabel(t.bancalOrigen ?? null)}) a adulto`}
+          {t.tipo === 'medicion_nutricion' && `Medir pH / EC — ${estanqueNombre(t.estanqueId!)}`}
+          {t.tipo === 'recambio_agua' && `Recambio de agua — ${estanqueNombre(t.estanqueId!)}`}
           <EstadoBadge dias={t.diasRestantes} />
         </div>
+        {!esNutricion && (
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="text-xl font-semibold tabular-nums leading-none">{t.cantidadSugerida.toLocaleString()}</span>
+            <span className="text-xs text-muted-foreground">plantas · {fracTubosStr(t.cantidadSugerida)} tubos</span>
+          </div>
+        )}
         <div className="text-xs text-muted-foreground">
-          {t.cantidadSugerida} plantas · {fracTubosStr(t.cantidadSugerida)} tubos
-          {t.tipo === 'sembrar' && <> · bandera sugerida N° {t.banderaSugerida}</>}
-          {t.tipo !== 'sembrar' && (
-            <> · destino sugerido: {sinEspacio ? 'sin bancal con espacio libre' : bancalLabel(t.bancalSugerido ?? null)}</>
+          {t.tipo === 'sembrar' && <>Bandera sugerida N° {t.banderaSugerida}</>}
+          {(t.tipo === 'traspaso_engorda' || t.tipo === 'traspaso_adulto') && (
+            <>Destino sugerido: {sinEspacio ? 'sin bancal con espacio libre' : bancalLabel(t.bancalSugerido ?? null)}</>
           )}
         </div>
       </div>
@@ -310,12 +469,31 @@ function TareaCard({
             onClick={() => onCompletar(t)}
           >
             <ClipboardCheck className="size-3.5" />
-            Completar
+            {t.tipo === 'medicion_nutricion' ? 'Registrar' : 'Completar'}
           </Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => onEditar(t)}>
-            <Pencil className="size-3.5" />
-            Editar
-          </Button>
+          {!esNutricion && (
+            <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => onEditar(t)}>
+              <Pencil className="size-3.5" />
+              Editar
+            </Button>
+          )}
+          {!esNutricion && t.diasRestantes < 0 && onPosponer && (
+            <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => onPosponer(t)}>
+              <CalendarClock className="size-3.5" />
+              Modificar fecha
+            </Button>
+          )}
+          {!esNutricion && t.diasRestantes < 0 && onEliminar && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1 px-2 text-xs text-destructive hover:text-destructive"
+              onClick={() => onEliminar(t)}
+            >
+              <Trash2 className="size-3.5" />
+              Eliminar
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

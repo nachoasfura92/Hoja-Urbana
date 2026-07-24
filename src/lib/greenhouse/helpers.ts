@@ -1,8 +1,22 @@
 // Funciones puras portadas 1:1 desde la app original (Recursos/html.txt).
 // No se cambia ningún cálculo: fechas, tubos/plantas, etc. se comportan igual.
 
-import { PT, COLORS_VAR } from './constants';
-import type { Bancales, BancalSlot, CosechaRecord, EstadoInvernadero, Lote, PlanItem, Variedad } from './types';
+import { PT, COLORS_VAR, ESTANQUES } from './constants';
+import type {
+  Bancales,
+  BancalSlot,
+  CosechaRecord,
+  EstadoInvernadero,
+  EstanqueId,
+  Etapa,
+  Lote,
+  MedicionNutricion,
+  Nutricion,
+  NutricionConfig,
+  PlanItem,
+  RecambioAgua,
+  Variedad,
+} from './types';
 
 // Fecha de HOY según el calendario local (no UTC): usar toISOString() acá
 // corría la fecha un día para adelante durante la noche en husos horarios
@@ -48,6 +62,14 @@ export function dr(f: string): number {
   return Math.round((b.getTime() - a.getTime()) / 86400000);
 }
 
+// Días entre dos fechas cualesquiera (no relativas a hoy, a diferencia de
+// dd()/dr()) — usado para reprogramar tareas vencidas a una fecha elegida.
+export function diasEntreFechas(desde: string, hasta: string): number {
+  const a = new Date(desde + 'T00:00:00');
+  const b = new Date(hasta + 'T00:00:00');
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+}
+
 // En el invernadero no se trabaja sábado ni domingo: cualquier fecha
 // programada (siembra, traspaso, agotamiento) que caiga en fin de semana se
 // corre al lunes siguiente. Aritmética directa (sin bucles): sábado +2,
@@ -73,6 +95,13 @@ export function gvColor(vars: Variedad[], id: number): string {
 // cualquier lugar donde se elija o liste una variedad.
 export function varLabel(v: Variedad): string {
   return v.tipo ? `${v.nombre} — ${v.tipo}` : v.nombre;
+}
+
+// Igual que varLabel, pero a partir de un varId (lotes, plan, slots de bancal
+// y tareas solo guardan varId/varNom, no el objeto Variedad completo con su
+// campo "tipo" — esto arma la etiqueta combinada al momento de mostrarla).
+export function varLabelPorId(vars: Variedad[], varId: number): string {
+  return varLabel(gv(vars, varId));
 }
 
 export function fracTubosStr(p: number): string {
@@ -351,6 +380,24 @@ export function primerBancalConEspacio(bancales: Bancales, tipo: 'eng' | 'adu', 
   return fallback;
 }
 
+export function defaultNutricionConfig(): NutricionConfig {
+  return {
+    phMin: 5.5,
+    phMax: 6.5,
+    // EC más baja en verano (mayor transpiración/riesgo de estrés salino) y
+    // más alta en invierno (compensa la absorción más lenta con frío) — valor
+    // sugerido, editable por el operador en el módulo de Nutrición.
+    ecVerano: 1.6,
+    ecInvierno: 2.0,
+    periodicidadMedicionDias: { mesa_plantines: 3, principal: 3 },
+    periodicidadRecambioDias: { mesa_plantines: 14, principal: 14 },
+  };
+}
+
+export function defaultNutricion(): Nutricion {
+  return { config: defaultNutricionConfig(), mediciones: [], recambios: [] };
+}
+
 export function defS(): EstadoInvernadero {
   return {
     vars: [
@@ -365,8 +412,92 @@ export function defS(): EstadoInvernadero {
     merma: { plantines: 0, engorda: 0, adulto: 0 },
     historial: [],
     cosechas: [],
+    nutricion: defaultNutricion(),
     nextId: 1,
   };
+}
+
+// ── Nutrición (pH / EC de los estanques) ──────────────────────────────────
+
+export function estanqueNombre(id: EstanqueId): string {
+  return ESTANQUES.find((e) => e.id === id)?.nombre ?? id;
+}
+
+export function estanqueLitrosBase(id: EstanqueId): number {
+  return ESTANQUES.find((e) => e.id === id)?.litros ?? 0;
+}
+
+// Mesa de plantines tiene su propio estanque; todos los bancales (engorda +
+// adulto) comparten el estanque principal.
+export function estanquePorEtapa(etapa: Etapa): EstanqueId {
+  return etapa === 'plantines' ? 'mesa_plantines' : 'principal';
+}
+
+// Verano meteorológico chileno aproximado (dic-mar): la EC objetivo sugerida
+// varía entre esa temporada y el resto del año (ver defaultNutricionConfig).
+export function esTemporadaVerano(fecha: string = hoy()): boolean {
+  const mes = Number(fecha.slice(5, 7));
+  return mes === 12 || mes <= 3;
+}
+
+export function ecObjetivoActual(config: NutricionConfig, fecha: string = hoy()): number {
+  return esTemporadaVerano(fecha) ? config.ecVerano : config.ecInvierno;
+}
+
+export function medicionesDeEstanque(mediciones: MedicionNutricion[], estanqueId: EstanqueId): MedicionNutricion[] {
+  return (mediciones || []).filter((m) => m.estanqueId === estanqueId).sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+export function ultimaMedicion(mediciones: MedicionNutricion[], estanqueId: EstanqueId): MedicionNutricion | null {
+  const serie = medicionesDeEstanque(mediciones, estanqueId);
+  return serie.length ? serie[serie.length - 1] : null;
+}
+
+export function recambiosDeEstanque(recambios: RecambioAgua[], estanqueId: EstanqueId): RecambioAgua[] {
+  return (recambios || []).filter((r) => r.estanqueId === estanqueId).sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+export function ultimoRecambio(recambios: RecambioAgua[], estanqueId: EstanqueId): RecambioAgua | null {
+  const serie = recambiosDeEstanque(recambios, estanqueId);
+  return serie.length ? serie[serie.length - 1] : null;
+}
+
+// Próxima fecha (día hábil) en que corresponde medir/recambiar un estanque,
+// según la última vez registrada y la periodicidad configurada.
+export function proximaFechaEstanque(ultima: string | null, periodicidadDias: number): string {
+  return proximoDiaHabil(ultima ? fmas(ultima, periodicidadDias) : hoy());
+}
+
+export interface PuntoNutricionLote {
+  fecha: string;
+  ph: number;
+  ec: number;
+  estanqueId: EstanqueId;
+}
+
+// Historial de pH/EC de un lote a lo largo de su ciclo de vida: mientras
+// estuvo en mesa de plantines toma las mediciones de ese estanque, y desde
+// que pasó a bancales toma las del estanque principal (los dos sistemas de
+// agua están físicamente separados). Se arma a partir de las calibraciones
+// reales de cada estanque, no de datos sintéticos por lote.
+export function serieNutricionLote(lote: Lote, mediciones: MedicionNutricion[]): PuntoNutricionLote[] {
+  const salidaMesa = (lote.movimientos || []).find((m) => m.accion === '→ engorda')?.fecha ?? null;
+  const puntos: PuntoNutricionLote[] = [];
+  const finMesa = salidaMesa ?? hoy();
+
+  medicionesDeEstanque(mediciones, 'mesa_plantines')
+    .filter((m) => m.fecha >= lote.fechaInicio && m.fecha <= finMesa)
+    .forEach((m) => puntos.push({ fecha: m.fecha, ph: m.ph, ec: m.ec, estanqueId: m.estanqueId }));
+
+  if (salidaMesa) {
+    const ultimoMov = lote.movimientos?.[lote.movimientos.length - 1];
+    const fin = lote.etapa === 'cosechado' && ultimoMov ? ultimoMov.fecha : hoy();
+    medicionesDeEstanque(mediciones, 'principal')
+      .filter((m) => m.fecha >= salidaMesa && m.fecha <= fin)
+      .forEach((m) => puntos.push({ fecha: m.fecha, ph: m.ph, ec: m.ec, estanqueId: m.estanqueId }));
+  }
+
+  return puntos.sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
 // ── Historial de cosechas (filtros por variedad / semana / mes) ────────────

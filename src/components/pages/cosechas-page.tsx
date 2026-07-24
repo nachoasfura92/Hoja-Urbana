@@ -11,6 +11,7 @@ import {
   fracTubosStr,
   resumenCosechasPorVariedad,
   varLabel,
+  varLabelPorId,
   PERIODOS_COSECHA,
   type PeriodoCosecha,
 } from '@/lib/greenhouse/helpers';
@@ -99,7 +100,7 @@ export function CosechasPage() {
           <div className="grid gap-1.5">
             {resumen.map((r) => (
               <div key={r.varId} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                <span className="font-medium">{r.varNom}</span>
+                <span className="font-medium">{varLabelPorId(state.vars, r.varId)}</span>
                 <span className="text-muted-foreground">
                   {r.plantas.toLocaleString()} plantas · {fracTubosStr(r.plantas)} tubos
                 </span>
@@ -125,7 +126,7 @@ export function CosechasPage() {
                 className="grid grid-cols-[80px_1fr_80px_1fr_1fr] gap-2 border-b py-1.5 text-sm last:border-b-0"
               >
                 <span className="text-muted-foreground">{fd(c.fecha)}</span>
-                <span className="font-medium">{c.varNom}</span>
+                <span className="font-medium">{varLabelPorId(state.vars, c.varId)}</span>
                 <span className="text-right">{c.plantas.toLocaleString()}</span>
                 <span className="text-muted-foreground">{c.autor || '—'}</span>
                 <span className="truncate text-muted-foreground">{c.nota || '—'}</span>

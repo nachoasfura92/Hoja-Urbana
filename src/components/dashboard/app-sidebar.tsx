@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   CalendarCheck,
   ClipboardList,
+  Droplets,
   History,
   LayoutDashboard,
   LayoutGrid,
@@ -48,6 +49,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { id: 'registrar', label: 'Registrar siembra', icon: ClipboardList },
       { id: 'mesa', label: 'Mesa plantines', icon: Sprout },
       { id: 'bancales', label: 'Bancales', icon: LayoutGrid },
+      { id: 'nutricion', label: 'Nutrición', icon: Droplets },
     ],
   },
   {

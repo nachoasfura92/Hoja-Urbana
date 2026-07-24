@@ -5,7 +5,7 @@ import { ArrowRightLeft, Sprout, Wheat, type LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
-import { dr, fd, fracTubosStr } from '@/lib/greenhouse/helpers';
+import { dr, fd, fracTubosStr, varLabelPorId } from '@/lib/greenhouse/helpers';
 import { calcularTareasHoy } from '@/lib/greenhouse/tareas';
 import { EtapaBadge } from '@/components/dashboard/etapa-badge';
 import type { Lote } from '@/lib/greenhouse/types';
@@ -82,7 +82,7 @@ export function ResumenPage() {
                   <CardContent className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
                     <div>
                       <div className="flex items-center gap-1.5 text-sm font-medium">
-                        {l.varNom} <EtapaBadge etapa={l.etapa} />
+                        {varLabelPorId(state.vars, l.varId)} <EtapaBadge etapa={l.etapa} />
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {l.plantasRestantes} plantas · {fracTubosStr(l.plantasRestantes)} tubos · est. {fd(l.fechaVenta)}

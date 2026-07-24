@@ -54,8 +54,11 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
         // para que se pueda ver algo, pero nunca se guarda automáticamente
         // desde acá — podría ser información vieja o vacía y pisar datos
         // reales en el servidor. Hay que recargar la página para reintentar.
+        // Se combina con defS() como base para que un respaldo local viejo,
+        // guardado antes de agregar un campo nuevo al estado (ej. nutricion),
+        // no rompa el render por faltarle esa propiedad.
         const local = localStorage.getItem(STORAGE_KEY);
-        setState(local ? (JSON.parse(local) as EstadoInvernadero) : defS());
+        setState(local ? { ...defS(), ...(JSON.parse(local) as EstadoInvernadero) } : defS());
         setSyncStatus('error');
       } finally {
         if (!cancelled) setLoaded(true);

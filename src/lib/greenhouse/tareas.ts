@@ -3,10 +3,23 @@
 // calcula a partir del estado existente (no se persiste nada nuevo): una
 // tarea "desaparece" sola cuando la acción subyacente ya se ejecutó.
 
-import { banderasEnUso, dr, fmas, hoy, primerBancalConEspacio, proximaBanderaDesde, proximoDiaHabil, sembradoEn } from './helpers';
-import type { EstadoInvernadero, Etapa } from './types';
+import {
+  banderasEnUso,
+  dr,
+  fmas,
+  hoy,
+  primerBancalConEspacio,
+  proximaBanderaDesde,
+  proximaFechaEstanque,
+  proximoDiaHabil,
+  sembradoEn,
+  ultimaMedicion,
+  ultimoRecambio,
+} from './helpers';
+import { ESTANQUES } from './constants';
+import type { EstadoInvernadero, EstanqueId, Etapa } from './types';
 
-export type TareaTipo = 'sembrar' | 'traspaso_engorda' | 'traspaso_adulto';
+export type TareaTipo = 'sembrar' | 'traspaso_engorda' | 'traspaso_adulto' | 'medicion_nutricion' | 'recambio_agua';
 
 export interface TareaHoy {
   id: string;
@@ -28,6 +41,8 @@ export interface TareaHoy {
   bancalOrigen?: string | null;
   bancalSugerido?: string | null;
   etapaDestino?: Etapa;
+  // medicion_nutricion / recambio_agua
+  estanqueId?: EstanqueId;
 }
 
 export function bancalLabel(k: string | null): string {
@@ -114,6 +129,45 @@ export function calcularTareasHoy(state: EstadoInvernadero): TareaHoy[] {
         etapaDestino: 'adulto',
       });
     });
+
+  const nutricion = state.nutricion;
+  if (nutricion) {
+    ESTANQUES.forEach((e) => {
+      const freqMed = nutricion.config.periodicidadMedicionDias[e.id];
+      const ultimaMed = ultimaMedicion(nutricion.mediciones, e.id);
+      const proximaMed = proximaFechaEstanque(ultimaMed?.fecha ?? null, freqMed);
+      const diasMed = dr(proximaMed);
+      if (diasMed <= VENTANA_DIAS) {
+        tareas.push({
+          id: `medicion_${e.id}_${proximaMed}`,
+          tipo: 'medicion_nutricion',
+          fechaObjetivo: proximaMed,
+          diasRestantes: diasMed,
+          varId: 0,
+          varNom: '',
+          cantidadSugerida: 0,
+          estanqueId: e.id,
+        });
+      }
+
+      const freqRec = nutricion.config.periodicidadRecambioDias[e.id];
+      const ultimoRec = ultimoRecambio(nutricion.recambios, e.id);
+      const proximoRec = proximaFechaEstanque(ultimoRec?.fecha ?? null, freqRec);
+      const diasRec = dr(proximoRec);
+      if (diasRec <= VENTANA_DIAS) {
+        tareas.push({
+          id: `recambio_${e.id}_${proximoRec}`,
+          tipo: 'recambio_agua',
+          fechaObjetivo: proximoRec,
+          diasRestantes: diasRec,
+          varId: 0,
+          varNom: '',
+          cantidadSugerida: 0,
+          estanqueId: e.id,
+        });
+      }
+    });
+  }
 
   return tareas.sort((a, b) => a.diasRestantes - b.diasRestantes);
 }

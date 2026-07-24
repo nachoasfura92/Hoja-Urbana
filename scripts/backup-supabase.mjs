@@ -27,6 +27,11 @@ const TABLAS = [
   'merma',
   'historial',
   'cosechas',
+  'estanques',
+  'nutricion_config',
+  'nutricion_estanque_config',
+  'nutricion_mediciones',
+  'nutricion_recambios',
 ];
 
 function log(msg) {

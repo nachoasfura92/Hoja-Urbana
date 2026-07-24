@@ -12,7 +12,7 @@ import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra, ejecutarMovimiento, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
-import { banderasEnUso, fd, fracTubosStr, getBanc, hoy, maxPlantas, plantasEnBanc } from '@/lib/greenhouse/helpers';
+import { banderasEnUso, fd, fracTubosStr, getBanc, hoy, maxPlantas, plantasEnBanc, varLabelPorId } from '@/lib/greenhouse/helpers';
 import { bancalLabel, type TareaHoy } from '@/lib/greenhouse/tareas';
 
 export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose: () => void }) {
@@ -52,7 +52,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
       const usP = plantasEnBanc(state.bancales, k);
       const libP = maxPlantas(k) - usP;
       const slots = getBanc(state.bancales, k);
-      const detalle = slots.length ? slots.map((s) => `${s.varNom}×${s.plantas}pl`).join(', ') : 'vacío';
+      const detalle = slots.length ? slots.map((s) => `${varLabelPorId(state.vars, s.varId)}×${s.plantas}pl`).join(', ') : 'vacío';
       return {
         key: k,
         label: `${tipoBancal === 'eng' ? 'E' : 'A'}${i} — ${fracTubosStr(libP)} tubos libres (${detalle})`,
@@ -60,7 +60,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
         disabled: libP <= 0,
       };
     });
-  }, [tarea, esSiembra, tipoBancal, maxBanc, state.bancales]);
+  }, [tarea, esSiembra, tipoBancal, maxBanc, state.bancales, state.vars]);
 
   const bancalItems = useMemo(() => Object.fromEntries(opciones.map((o) => [o.key, o.label])), [opciones]);
 
@@ -78,7 +78,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
       const cant = cantidad || tarea!.cantidadSugerida;
       const band = bandera || tarea!.banderaSugerida || 1;
       setResumen({
-        titulo: `Confirmar siembra — ${tarea!.varNom}`,
+        titulo: `Confirmar siembra — ${varLabelPorId(state.vars, tarea!.varId)}`,
         filas: [
           { label: 'Cantidad', value: `${cant} plantas (${fracTubosStr(cant)} tubos)` },
           { label: 'Fecha', value: fd(fecha) },
@@ -144,9 +144,9 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
       titulo:
         tarea!.tipo === 'traspaso_engorda'
           ? `Confirmar traspaso a engorda — bandera N°${tarea!.bandera}`
-          : `Confirmar traspaso a adulto — ${tarea!.varNom}`,
+          : `Confirmar traspaso a adulto — ${varLabelPorId(state.vars, tarea!.varId)}`,
       filas: [
-        { label: 'Variedad', value: tarea!.varNom },
+        { label: 'Variedad', value: varLabelPorId(state.vars, tarea!.varId) },
         { label: 'Cantidad', value: `${params.plantasM} plantas (${fracTubosStr(params.plantasM)} tubos)` },
         { label: 'Fecha', value: fd(params.fechaMov) },
         { label: 'Bancal destino', value: bancalLabel(params.bancKey) },
@@ -168,11 +168,12 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
     mostrarResumenTraspaso(params);
   }
 
+  const varLabelTarea = varLabelPorId(state.vars, tarea.varId);
   const titulo = esSiembra
-    ? `Sembrar ${tarea.varNom}`
+    ? `Sembrar ${varLabelTarea}`
     : tarea.tipo === 'traspaso_engorda'
-      ? `Traspasar bandera N°${tarea.bandera} (${tarea.varNom}) a engorda`
-      : `Traspasar ${tarea.varNom} a adulto`;
+      ? `Traspasar bandera N°${tarea.bandera} (${varLabelTarea}) a engorda`
+      : `Traspasar ${varLabelTarea} a adulto`;
 
   return (
     <>

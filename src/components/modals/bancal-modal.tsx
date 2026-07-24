@@ -7,7 +7,7 @@ import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { limpiarBancal } from '@/lib/greenhouse/actions';
 import { COLORS_VAR } from '@/lib/greenhouse/constants';
-import { capacidadTubos, dd, dr, fd, fracTubosStr, getBanc, maxPlantas, plantasEnBanc } from '@/lib/greenhouse/helpers';
+import { capacidadTubos, dd, dr, fd, fracTubosStr, getBanc, maxPlantas, plantasEnBanc, varLabelPorId } from '@/lib/greenhouse/helpers';
 
 export function BancalModal() {
   const { state, update } = useGreenhouse();
@@ -68,7 +68,7 @@ export function BancalModal() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <span className="size-2 rounded-full" style={{ background: color }} />
-                      <span className="text-sm font-medium">{s.varNom}</span>
+                      <span className="text-sm font-medium">{varLabelPorId(state.vars, s.varId)}</span>
                     </div>
                     <span className="text-sm text-muted-foreground">
                       {s.plantas} plantas · {fracTubosStr(s.plantas)} tubos ({pct}%)
@@ -99,7 +99,7 @@ export function BancalModal() {
                   className="cursor-pointer rounded-md border px-3 py-2 transition-colors hover:border-primary"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">{l.varNom}</div>
+                    <div className="text-sm font-medium">{varLabelPorId(state.vars, l.varId)}</div>
                     <div className="flex gap-1">
                       {tipo === 'adu' && (
                         <Button

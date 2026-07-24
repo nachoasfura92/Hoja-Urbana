@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Minus, Pencil, Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { LineChart as LineChartIcon, Minus, Pencil, Plus } from 'lucide-react';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { editarPauta, eliminarPlantas } from '@/lib/greenhouse/actions';
-import { dd, fd, fracTubosStr } from '@/lib/greenhouse/helpers';
+import { dd, fd, fracTubosStr, serieNutricionLote, varLabelPorId } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
 const SIGUIENTE: Partial<Record<Etapa, Etapa>> = {
@@ -28,6 +29,10 @@ export function LoteModal() {
   const { displayName, email } = useCurrentUser();
   const autor = displayName || email || undefined;
   const lote = loteId != null ? state.lotes.find((l) => l.id === loteId) : null;
+  const serieNutricion = useMemo(
+    () => (lote ? serieNutricionLote(lote, state.nutricion.mediciones) : []),
+    [lote, state.nutricion.mediciones]
+  );
 
   const [eliminarOpen, setEliminarOpen] = useState(false);
   const [plantasEliminar, setPlantasEliminar] = useState(0);
@@ -103,7 +108,7 @@ export function LoteModal() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {lote.varNom} — {lote.etapa}
+              {varLabelPorId(state.vars, lote.varId)} — {lote.etapa}
               <BanderaBadge numero={lote.bandera} />
             </DialogTitle>
           </DialogHeader>
@@ -163,6 +168,47 @@ export function LoteModal() {
             </div>
           )}
 
+          {serieNutricion.length > 0 && (
+            <div className="grid gap-2">
+              <h4 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <LineChartIcon className="size-3.5" />
+                pH / EC durante el ciclo
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="h-[110px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={serieNutricion}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                      <XAxis dataKey="fecha" tickFormatter={(v: string) => fd(v)} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                      <YAxis domain={['dataMin - 0.3', 'dataMax + 0.3']} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={26} />
+                      <Tooltip
+                        labelFormatter={(v) => fd(String(v))}
+                        contentStyle={{ background: 'var(--popover)', color: 'var(--popover-foreground)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                        formatter={(value) => [Number(value).toFixed(1), 'pH']}
+                      />
+                      <Line type="linear" dataKey="ph" stroke="var(--primary)" strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="h-[110px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={serieNutricion}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                      <XAxis dataKey="fecha" tickFormatter={(v: string) => fd(v)} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                      <YAxis domain={['dataMin - 0.2', 'dataMax + 0.2']} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={26} />
+                      <Tooltip
+                        labelFormatter={(v) => fd(String(v))}
+                        contentStyle={{ background: 'var(--popover)', color: 'var(--popover-foreground)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                        formatter={(value) => [Number(value).toFixed(2), 'EC']}
+                      />
+                      <Line type="linear" dataKey="ec" stroke="#1D6FA4" strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid gap-1">
             <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Historial</h4>
             <div className="max-h-48 overflow-y-auto">
@@ -193,7 +239,7 @@ export function LoteModal() {
       <Dialog open={eliminarOpen} onOpenChange={setEliminarOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Eliminar plantas — {lote.varNom}</DialogTitle>
+            <DialogTitle>Eliminar plantas — {varLabelPorId(state.vars, lote.varId)}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1.5">

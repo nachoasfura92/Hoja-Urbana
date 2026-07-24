@@ -2,8 +2,8 @@
 // Cada función recibe el "draft" (una copia mutable del estado) y lo modifica
 // directamente, igual que el original modificaba el objeto global `S`.
 
-import { addSlot, fd, fmas, fracTubosStr, hoy, planHoy, remSlot } from './helpers';
-import type { EstadoInvernadero, Etapa, Lote } from './types';
+import { addSlot, defaultNutricion, diasEntreFechas, estanqueNombre, fd, fmas, fracTubosStr, hoy, planHoy, remSlot } from './helpers';
+import type { EstadoInvernadero, EstanqueId, Etapa, Lote, NutricionConfig } from './types';
 
 export function log(draft: EstadoInvernadero, accion: string, detalle: string, autor?: string) {
   if (!draft.historial) draft.historial = [];
@@ -59,6 +59,22 @@ export function addPlanItem(
 
 export function deletePlanItem(draft: EstadoInvernadero, id: number) {
   draft.plan = draft.plan.filter((x) => x.id !== id);
+}
+
+// Reprograma la próxima siembra vencida de un ítem del plan a una fecha
+// elegida por el operador (en vez de completarla u omitirla): se ajusta
+// ultimaSiembra hacia atrás para que "ultimaSiembra + freq" caiga en esa fecha.
+export interface PosponerSiembraParams {
+  planId: number;
+  nuevaFecha: string;
+  autor?: string;
+}
+
+export function posponerSiembra(draft: EstadoInvernadero, params: PosponerSiembraParams) {
+  const p = draft.plan.find((x) => x.id === params.planId);
+  if (!p) return;
+  p.ultimaSiembra = fmas(params.nuevaFecha, -p.freq);
+  log(draft, 'Siembra reprogramada', `${p.varNom}: próxima el ${fd(params.nuevaFecha)}`, params.autor);
 }
 
 export function editPlanItem(
@@ -376,6 +392,82 @@ export function editarPauta(draft: EstadoInvernadero, params: EditarPautaParams)
   if (!l.movimientos) l.movimientos = [];
   l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Pauta editada', detalle, autor: params.autor });
   log(draft, 'Pauta editada', `${l.varNom}: ${detalle}`, params.autor);
+}
+
+// Reprograma un traspaso vencido (mesa→engorda o engorda→adulto) a una fecha
+// elegida por el operador: recalcula los días objetivo de esa etapa (dp o de)
+// a partir de la diferencia entre fechaEtapa y la nueva fecha, reutilizando
+// editarPauta para que fechaVenta quede consistente.
+export interface PosponerTraspasoParams {
+  loteId: number;
+  campo: 'dp' | 'de';
+  nuevaFecha: string;
+  autor?: string;
+}
+
+export function posponerTraspaso(draft: EstadoInvernadero, params: PosponerTraspasoParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l) return;
+  const dias = Math.max(1, diasEntreFechas(l.fechaEtapa, params.nuevaFecha));
+  editarPauta(draft, {
+    loteId: l.id,
+    dp: params.campo === 'dp' ? dias : l.dp,
+    de: params.campo === 'de' ? dias : l.de,
+    da: l.da,
+    autor: params.autor,
+  });
+}
+
+// ── Nutrición (pH / EC de los estanques) ────────────────────────────────
+
+export interface RegistrarMedicionNutricionParams {
+  estanqueId: EstanqueId;
+  fecha: string;
+  ph: number;
+  ec: number;
+  litros: number;
+  mlAcidoPor1L?: number;
+  gramosAPor1L?: number;
+  gramosBPor1L?: number;
+  autor?: string;
+}
+
+export function registrarMedicionNutricion(draft: EstadoInvernadero, p: RegistrarMedicionNutricionParams) {
+  if (!draft.nutricion) draft.nutricion = defaultNutricion();
+  draft.nutricion.mediciones.push({
+    id: draft.nextId++,
+    estanqueId: p.estanqueId,
+    fecha: p.fecha,
+    ph: p.ph,
+    ec: p.ec,
+    litros: p.litros,
+    mlAcidoPor1L: p.mlAcidoPor1L,
+    gramosAPor1L: p.gramosAPor1L,
+    gramosBPor1L: p.gramosBPor1L,
+    mlAcidoSugerido: p.mlAcidoPor1L != null ? Math.round(p.mlAcidoPor1L * p.litros * 100) / 100 : undefined,
+    gramosASugerido: p.gramosAPor1L != null ? Math.round(p.gramosAPor1L * p.litros * 100) / 100 : undefined,
+    gramosBSugerido: p.gramosBPor1L != null ? Math.round(p.gramosBPor1L * p.litros * 100) / 100 : undefined,
+    autor: p.autor,
+  });
+  log(draft, 'Calibración nutrición', `${estanqueNombre(p.estanqueId)}: pH ${p.ph} · EC ${p.ec} mS/cm`, p.autor);
+}
+
+export interface RegistrarRecambioAguaParams {
+  estanqueId: EstanqueId;
+  fecha: string;
+  autor?: string;
+}
+
+export function registrarRecambioAgua(draft: EstadoInvernadero, p: RegistrarRecambioAguaParams) {
+  if (!draft.nutricion) draft.nutricion = defaultNutricion();
+  draft.nutricion.recambios.push({ id: draft.nextId++, estanqueId: p.estanqueId, fecha: p.fecha, autor: p.autor });
+  log(draft, 'Recambio de agua', `${estanqueNombre(p.estanqueId)} — ${fd(p.fecha)}`, p.autor);
+}
+
+export function actualizarConfigNutricion(draft: EstadoInvernadero, config: NutricionConfig) {
+  if (!draft.nutricion) draft.nutricion = defaultNutricion();
+  draft.nutricion.config = { ...config };
+  log(draft, 'Config nutrición', 'Objetivos de pH/EC y periodicidad actualizados');
 }
 
 export function limpiarBancal(draft: EstadoInvernadero, k: string) {

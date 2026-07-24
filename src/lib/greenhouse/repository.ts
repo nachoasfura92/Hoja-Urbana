@@ -10,15 +10,19 @@
 // insignificante.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { defS } from './helpers';
+import { defS, defaultNutricionConfig } from './helpers';
+import { ESTANQUES } from './constants';
 import type {
   Bancales,
   CosechaRecord,
   EstadoInvernadero,
+  EstanqueId,
   HistorialEntry,
   Lote,
+  MedicionNutricion,
   Movimiento,
   PlanItem,
+  RecambioAgua,
   Variedad,
 } from './types';
 
@@ -52,6 +56,10 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     mermaRes,
     historialRes,
     cosechasRes,
+    nutricionConfigRes,
+    nutricionEstanqueConfigRes,
+    nutricionMedicionesRes,
+    nutricionRecambiosRes,
   ] = await Promise.all([
     supabase.from('variedades').select('id, nombre, marca, tipo').order('id'),
     supabase.from('lotes').select('*').order('id'),
@@ -63,6 +71,10 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     supabase.from('merma').select('etapa, cantidad'),
     supabase.from('historial').select('*').order('id', { ascending: false }),
     supabase.from('cosechas').select('*').order('fecha', { ascending: false }),
+    supabase.from('nutricion_config').select('*').eq('id', 1).maybeSingle(),
+    supabase.from('nutricion_estanque_config').select('*'),
+    supabase.from('nutricion_mediciones').select('*').order('id'),
+    supabase.from('nutricion_recambios').select('*').order('id'),
   ]);
 
   for (const res of [
@@ -75,10 +87,14 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     mermaRes,
     historialRes,
     cosechasRes,
+    nutricionEstanqueConfigRes,
+    nutricionMedicionesRes,
+    nutricionRecambiosRes,
   ]) {
     if (res.error) throw new Error(res.error.message);
   }
   if (cubosRes.error) throw new Error(cubosRes.error.message);
+  if (nutricionConfigRes.error) throw new Error(nutricionConfigRes.error.message);
 
   const vars: Variedad[] = (variedadesRes.data || []).map((v) => ({
     id: v.id,
@@ -162,6 +178,55 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     autor: c.autor ?? undefined,
   }));
 
+  const periodicidadMedicionDias = {} as Record<EstanqueId, number>;
+  const periodicidadRecambioDias = {} as Record<EstanqueId, number>;
+  ESTANQUES.forEach((e) => {
+    periodicidadMedicionDias[e.id] = 3;
+    periodicidadRecambioDias[e.id] = 14;
+  });
+  (nutricionEstanqueConfigRes.data || []).forEach((e) => {
+    const id = e.estanque_id as EstanqueId;
+    periodicidadMedicionDias[id] = e.periodicidad_medicion_dias;
+    periodicidadRecambioDias[id] = e.periodicidad_recambio_dias;
+  });
+
+  const mediciones: MedicionNutricion[] = (nutricionMedicionesRes.data || []).map((m) => ({
+    id: m.id,
+    estanqueId: m.estanque_id,
+    fecha: m.fecha,
+    ph: m.ph,
+    ec: m.ec,
+    litros: m.litros,
+    mlAcidoPor1L: m.ml_acido_por_1l ?? undefined,
+    gramosAPor1L: m.gramos_a_por_1l ?? undefined,
+    gramosBPor1L: m.gramos_b_por_1l ?? undefined,
+    mlAcidoSugerido: m.ml_acido_sugerido ?? undefined,
+    gramosASugerido: m.gramos_a_sugerido ?? undefined,
+    gramosBSugerido: m.gramos_b_sugerido ?? undefined,
+    autor: m.autor ?? undefined,
+  }));
+
+  const recambios: RecambioAgua[] = (nutricionRecambiosRes.data || []).map((r) => ({
+    id: r.id,
+    estanqueId: r.estanque_id,
+    fecha: r.fecha,
+    autor: r.autor ?? undefined,
+  }));
+
+  const nutricionDefault = defaultNutricionConfig();
+  const nutricion = {
+    config: {
+      phMin: nutricionConfigRes.data?.ph_min ?? nutricionDefault.phMin,
+      phMax: nutricionConfigRes.data?.ph_max ?? nutricionDefault.phMax,
+      ecVerano: nutricionConfigRes.data?.ec_verano ?? nutricionDefault.ecVerano,
+      ecInvierno: nutricionConfigRes.data?.ec_invierno ?? nutricionDefault.ecInvierno,
+      periodicidadMedicionDias,
+      periodicidadRecambioDias,
+    },
+    mediciones,
+    recambios,
+  };
+
   const todosLosIds: number[] = [
     ...vars.map((v) => v.id),
     ...lotes.map((l) => l.id),
@@ -169,6 +234,8 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     ...plan.map((p) => p.id),
     ...historial.map((h) => h.id),
     ...cosechas.map((c) => c.id),
+    ...mediciones.map((m) => m.id),
+    ...recambios.map((r) => r.id),
   ];
   const nextId = (todosLosIds.length ? Math.max(...todosLosIds) : 0) + 1;
 
@@ -182,6 +249,7 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     merma,
     historial,
     cosechas,
+    nutricion,
     nextId: Math.max(nextId, base.nextId),
   };
 }
@@ -279,4 +347,52 @@ export async function guardarEstadoEnTablas(supabase: DB, state: EstadoInvernade
   }));
   const { error: errorMerma } = await supabase.from('merma').upsert(mermaRows, { onConflict: 'etapa' });
   if (errorMerma) throw new Error(`merma: ${errorMerma.message}`);
+
+  const nutricion = state.nutricion;
+  const { error: errorNutricionConfig } = await supabase.from('nutricion_config').upsert(
+    {
+      id: 1,
+      ph_min: nutricion.config.phMin,
+      ph_max: nutricion.config.phMax,
+      ec_verano: nutricion.config.ecVerano,
+      ec_invierno: nutricion.config.ecInvierno,
+    },
+    { onConflict: 'id' }
+  );
+  if (errorNutricionConfig) throw new Error(`nutricion_config: ${errorNutricionConfig.message}`);
+
+  const estanqueConfigRows = ESTANQUES.map((e) => ({
+    estanque_id: e.id,
+    periodicidad_medicion_dias: nutricion.config.periodicidadMedicionDias[e.id],
+    periodicidad_recambio_dias: nutricion.config.periodicidadRecambioDias[e.id],
+  }));
+  const { error: errorEstanqueConfig } = await supabase
+    .from('nutricion_estanque_config')
+    .upsert(estanqueConfigRows, { onConflict: 'estanque_id' });
+  if (errorEstanqueConfig) throw new Error(`nutricion_estanque_config: ${errorEstanqueConfig.message}`);
+
+  const medicionRows = nutricion.mediciones.map((m) => ({
+    id: m.id,
+    estanque_id: m.estanqueId,
+    fecha: m.fecha,
+    ph: m.ph,
+    ec: m.ec,
+    litros: m.litros,
+    ml_acido_por_1l: m.mlAcidoPor1L ?? null,
+    gramos_a_por_1l: m.gramosAPor1L ?? null,
+    gramos_b_por_1l: m.gramosBPor1L ?? null,
+    ml_acido_sugerido: m.mlAcidoSugerido ?? null,
+    gramos_a_sugerido: m.gramosASugerido ?? null,
+    gramos_b_sugerido: m.gramosBSugerido ?? null,
+    autor: m.autor ?? null,
+  }));
+  await upsertYPodar(supabase, 'nutricion_mediciones', medicionRows, 'id');
+
+  const recambioRows = nutricion.recambios.map((r) => ({
+    id: r.id,
+    estanque_id: r.estanqueId,
+    fecha: r.fecha,
+    autor: r.autor ?? null,
+  }));
+  await upsertYPodar(supabase, 'nutricion_recambios', recambioRows, 'id');
 }

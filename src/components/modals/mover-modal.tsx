@@ -13,7 +13,7 @@ import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { ejecutarMovimiento, moverEntreBancales, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
-import { fracTubosStr, getBanc, hoy, maxPlantas, plantasEnBanc } from '@/lib/greenhouse/helpers';
+import { fracTubosStr, getBanc, hoy, maxPlantas, plantasEnBanc, varLabelPorId } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
 const SIGUIENTE: Partial<Record<Etapa, Etapa>> = { plantines: 'engorda', engorda: 'adulto' };
@@ -61,7 +61,7 @@ export function MoverModal() {
       const usP = plantasEnBanc(state.bancales, k);
       const libP = maxPlantas(k) - usP;
       const slots = getBanc(state.bancales, k);
-      const detalle = slots.length ? slots.map((s) => `${s.varNom}×${s.plantas}pl`).join(', ') : 'vacío';
+      const detalle = slots.length ? slots.map((s) => `${varLabelPorId(state.vars, s.varId)}×${s.plantas}pl`).join(', ') : 'vacío';
       return {
         key: k,
         label: `${tipo === 'eng' ? 'E' : 'A'}${i} — ${fracTubosStr(libP)} tubos libres (${detalle})`,
@@ -69,7 +69,7 @@ export function MoverModal() {
         disabled: libP <= 0,
       };
     }).filter((o): o is NonNullable<typeof o> => o !== null);
-  }, [lote, modoReubicar, sig, state.bancales]);
+  }, [lote, modoReubicar, sig, state.bancales, state.vars]);
 
   const bancalItems = useMemo(() => Object.fromEntries(opciones.map((o) => [o.key, o.label])), [opciones]);
 
@@ -139,7 +139,11 @@ export function MoverModal() {
       <Dialog open={!pending && moverId != null} onOpenChange={(o) => !o && closeMover()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{modoReubicar ? `${lote.varNom}: mover a otro bancal` : `${lote.varNom}: ${lote.etapa} → ${sig}`}</DialogTitle>
+            <DialogTitle>
+              {modoReubicar
+                ? `${varLabelPorId(state.vars, lote.varId)}: mover a otro bancal`
+                : `${varLabelPorId(state.vars, lote.varId)}: ${lote.etapa} → ${sig}`}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="rounded-md bg-muted/60 px-3 py-2 text-sm">

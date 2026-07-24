@@ -10,7 +10,7 @@ import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { cosechar } from '@/lib/greenhouse/actions';
-import { fracTubosStr, hoy } from '@/lib/greenhouse/helpers';
+import { fracTubosStr, hoy, varLabelPorId } from '@/lib/greenhouse/helpers';
 
 export function CosecharModal() {
   const { state, update } = useGreenhouse();
@@ -54,7 +54,7 @@ export function CosecharModal() {
     <Dialog open={cosecharId != null} onOpenChange={(o) => !o && closeCosechar()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Cosechar — {lote.varNom}</DialogTitle>
+          <DialogTitle>Cosechar — {varLabelPorId(state.vars, lote.varId)}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <div className="rounded-md bg-muted/60 px-3 py-2 text-sm">
