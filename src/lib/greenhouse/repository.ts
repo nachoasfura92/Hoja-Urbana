@@ -224,6 +224,8 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
       phMax: nutricionConfigRes.data?.ph_max ?? nutricionDefault.phMax,
       ecVerano: nutricionConfigRes.data?.ec_verano ?? nutricionDefault.ecVerano,
       ecInvierno: nutricionConfigRes.data?.ec_invierno ?? nutricionDefault.ecInvierno,
+      dosisAPorLitro: nutricionConfigRes.data?.dosis_a_por_litro ?? nutricionDefault.dosisAPorLitro,
+      dosisBPorLitro: nutricionConfigRes.data?.dosis_b_por_litro ?? nutricionDefault.dosisBPorLitro,
       periodicidadPhDias,
       periodicidadEcDias,
       periodicidadRecambioDias,
@@ -361,6 +363,8 @@ export async function guardarEstadoEnTablas(supabase: DB, state: EstadoInvernade
       ph_max: nutricion.config.phMax,
       ec_verano: nutricion.config.ecVerano,
       ec_invierno: nutricion.config.ecInvierno,
+      dosis_a_por_litro: nutricion.config.dosisAPorLitro,
+      dosis_b_por_litro: nutricion.config.dosisBPorLitro,
     },
     { onConflict: 'id' }
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Droplets, FlaskConical, LineChart as LineChartIcon, RefreshCw, Settings2 } from 'lucide-react';
+import { Droplets, FlaskConical, LineChart as LineChartIcon, Pencil, RefreshCw, Settings2, Trash2 } from 'lucide-react';
 import {
   CartesianGrid,
   Line,
@@ -19,9 +19,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { CalibracionModal, type CalibracionTarget } from '@/components/modals/calibracion-modal';
+import { EditarMedicionModal } from '@/components/modals/editar-medicion-modal';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
-import { actualizarConfigNutricion, registrarRecambioAgua } from '@/lib/greenhouse/actions';
+import { actualizarConfigNutricion, eliminarMedicionNutricion, registrarRecambioAgua } from '@/lib/greenhouse/actions';
 import {
   dd,
   ecObjetivoActual,
@@ -32,7 +33,7 @@ import {
   recambiosDeEstanque,
 } from '@/lib/greenhouse/helpers';
 import { ESTANQUES } from '@/lib/greenhouse/constants';
-import type { EstanqueId, NutricionConfig } from '@/lib/greenhouse/types';
+import type { EstanqueId, MedicionNutricion, NutricionConfig } from '@/lib/greenhouse/types';
 
 function tooltipStyle() {
   return {
@@ -50,6 +51,7 @@ export function NutricionPage() {
   const autor = displayName || email || undefined;
   const [config, setConfig] = useState<NutricionConfig>(state.nutricion.config);
   const [calibrando, setCalibrando] = useState<CalibracionTarget | null>(null);
+  const [editandoMedicion, setEditandoMedicion] = useState<MedicionNutricion | null>(null);
 
   function guardarConfig() {
     update((draft) => actualizarConfigNutricion(draft, config));
@@ -57,6 +59,11 @@ export function NutricionPage() {
 
   function recambioHoy(estanqueId: EstanqueId) {
     update((draft) => registrarRecambioAgua(draft, { estanqueId, fecha: hoy(), autor }));
+  }
+
+  function eliminarRapido(m: MedicionNutricion) {
+    if (!confirm(`¿Eliminar esta medición de ${m.tipo === 'ph' ? 'pH' : 'EC'} del ${fd(m.fecha)}?`)) return;
+    update((draft) => eliminarMedicionNutricion(draft, m.id));
   }
 
   return (
@@ -110,6 +117,31 @@ export function NutricionPage() {
           <p className="text-xs text-muted-foreground">
             Objetivo de hoy: pH {config.phMin}–{config.phMax} · EC {ecObjetivoActual(config)} mS/cm — valores sugeridos,
             editables en cualquier momento.
+          </p>
+          <Separator />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid gap-1.5">
+              <Label>Polvo A — Blanca (g/L)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={config.dosisAPorLitro}
+                onChange={(e) => setConfig((c) => ({ ...c, dosisAPorLitro: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Polvo B — Café (g/L)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={config.dosisBPorLitro}
+                onChange={(e) => setConfig((c) => ({ ...c, dosisBPorLitro: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Dosis estándar de fábrica para preparar la solución de prueba de 1 L antes de medir EC — se sugiere
+            automáticamente al registrar una calibración de EC.
           </p>
           <Separator />
           <div className="grid gap-3 sm:grid-cols-2">
@@ -182,11 +214,14 @@ export function NutricionPage() {
             config={config}
             onCalibrar={(tipo) => setCalibrando({ estanqueId: e.id, tipo })}
             onRecambio={() => recambioHoy(e.id)}
+            onEditarMedicion={setEditandoMedicion}
+            onEliminarMedicion={eliminarRapido}
           />
         ))}
       </div>
 
       <CalibracionModal target={calibrando} onClose={() => setCalibrando(null)} />
+      <EditarMedicionModal medicion={editandoMedicion} onClose={() => setEditandoMedicion(null)} />
     </div>
   );
 }
@@ -198,6 +233,8 @@ function EstanqueCard({
   config,
   onCalibrar,
   onRecambio,
+  onEditarMedicion,
+  onEliminarMedicion,
 }: {
   estanqueId: EstanqueId;
   nombre: string;
@@ -205,6 +242,8 @@ function EstanqueCard({
   config: NutricionConfig;
   onCalibrar: (tipo: 'ph' | 'ec') => void;
   onRecambio: () => void;
+  onEditarMedicion: (m: MedicionNutricion) => void;
+  onEliminarMedicion: (m: MedicionNutricion) => void;
 }) {
   const { state } = useGreenhouse();
   const medicionesPh = useMemo(
@@ -349,7 +388,70 @@ function EstanqueCard({
         {!chartDataPh.length && !chartDataEc.length && (
           <p className="text-sm text-muted-foreground">Aún no hay calibraciones registradas para este estanque.</p>
         )}
+
+        {(medicionesPh.length > 0 || medicionesEc.length > 0) && (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {medicionesPh.length > 0 && (
+              <HistorialMedicion
+                titulo="Historial pH"
+                mediciones={medicionesPh}
+                unidad=""
+                onEditar={onEditarMedicion}
+                onEliminar={onEliminarMedicion}
+              />
+            )}
+            {medicionesEc.length > 0 && (
+              <HistorialMedicion
+                titulo="Historial EC"
+                mediciones={medicionesEc}
+                unidad=" mS/cm"
+                onEditar={onEditarMedicion}
+                onEliminar={onEliminarMedicion}
+              />
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function HistorialMedicion({
+  titulo,
+  mediciones,
+  unidad,
+  onEditar,
+  onEliminar,
+}: {
+  titulo: string;
+  mediciones: MedicionNutricion[];
+  unidad: string;
+  onEditar: (m: MedicionNutricion) => void;
+  onEliminar: (m: MedicionNutricion) => void;
+}) {
+  const recientes = [...mediciones].reverse().slice(0, 8);
+  return (
+    <div className="grid gap-1">
+      <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{titulo}</h4>
+      <div className="max-h-40 overflow-y-auto">
+        {recientes.map((m) => (
+          <div key={m.id} className="flex items-center justify-between gap-2 border-b py-1 text-xs last:border-b-0">
+            <span className="text-muted-foreground">{fd(m.fecha)}</span>
+            <span className="font-medium">
+              {m.tipo === 'ph' ? m.ph : m.ec}
+              {unidad}
+            </span>
+            <div className="flex shrink-0 gap-0.5">
+              <Button variant="ghost" size="icon" className="size-6" onClick={() => onEditar(m)}>
+                <Pencil className="size-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="size-6 text-destructive" onClick={() => onEliminar(m)}>
+                <Trash2 className="size-3" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

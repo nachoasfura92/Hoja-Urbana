@@ -390,6 +390,8 @@ export function defaultNutricionConfig(): NutricionConfig {
     // sugerido, editable por el operador en el módulo de Nutrición.
     ecVerano: 1.6,
     ecInvierno: 2.0,
+    dosisAPorLitro: 0.83,
+    dosisBPorLitro: 0.79,
     periodicidadPhDias: { mesa_plantines: 3, principal: 3 },
     periodicidadEcDias: { mesa_plantines: 3, principal: 3 },
     periodicidadRecambioDias: { mesa_plantines: 14, principal: 14 },

@@ -53,8 +53,11 @@ export function CalibracionModal({ target, onClose }: { target: CalibracionTarge
     setFecha(hoy());
     setLitros(estanqueLitrosBase(target.estanqueId));
     setMlAcido('');
-    setGramosA('');
-    setGramosB('');
+    // Precarga la dosis estándar de fábrica (ver Nutrición > Objetivos) como
+    // punto de partida sugerido para preparar la prueba de 1 L; el operador
+    // puede ajustarla si terminó usando otra cantidad.
+    setGramosA(target.tipo === 'ec' ? String(config.dosisAPorLitro) : '');
+    setGramosB(target.tipo === 'ec' ? String(config.dosisBPorLitro) : '');
     setValorFinal('');
   }
 
@@ -134,10 +137,17 @@ export function CalibracionModal({ target, onClose }: { target: CalibracionTarge
           </div>
 
           <Separator />
-          <p className="text-xs text-muted-foreground">
-            1. Prueba: agrega {esPh ? 'ácido fosfórico' : 'polvo A y polvo B'} a <strong>1 litro</strong> de solución
-            hasta llegar al objetivo, y registra cuánto usaste.
-          </p>
+          {esPh ? (
+            <p className="text-xs text-muted-foreground">
+              1. Prueba: agrega ácido fosfórico a <strong>1 litro</strong> de solución hasta llegar al objetivo, y
+              registra cuánto usaste.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              1. Prepara <strong>1 litro</strong> de solución de prueba con la dosis estándar sugerida abajo (polvo A —
+              Blanca, polvo B — Café); ajusta los gramos si terminaste usando otra cantidad para llegar al objetivo.
+            </p>
+          )}
 
           {esPh ? (
             <div className="grid gap-1.5">
@@ -147,11 +157,11 @@ export function CalibracionModal({ target, onClose }: { target: CalibracionTarge
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label>Polvo A (g/1L)</Label>
+                <Label>Polvo A — Blanca (g/1L)</Label>
                 <Input type="number" min={0} step="0.1" placeholder="0" value={gramosA} onChange={(e) => setGramosA(e.target.value)} />
               </div>
               <div className="grid gap-1.5">
-                <Label>Polvo B (g/1L)</Label>
+                <Label>Polvo B — Café (g/1L)</Label>
                 <Input type="number" min={0} step="0.1" placeholder="0" value={gramosB} onChange={(e) => setGramosB(e.target.value)} />
               </div>
             </div>
@@ -169,12 +179,12 @@ export function CalibracionModal({ target, onClose }: { target: CalibracionTarge
               )}
               {gramosASugerido != null && (
                 <div>
-                  Polvo A: <strong>{gramosASugerido} g</strong>
+                  Polvo A (Blanca): <strong>{gramosASugerido} g</strong>
                 </div>
               )}
               {gramosBSugerido != null && (
                 <div>
-                  Polvo B: <strong>{gramosBSugerido} g</strong>
+                  Polvo B (Café): <strong>{gramosBSugerido} g</strong>
                 </div>
               )}
             </div>

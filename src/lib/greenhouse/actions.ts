@@ -476,6 +476,50 @@ export function registrarMedicionEc(draft: EstadoInvernadero, p: RegistrarMedici
   log(draft, 'Calibración EC', `${estanqueNombre(p.estanqueId)}: EC ${p.ec} mS/cm`, p.autor);
 }
 
+// Edita un registro de calibración existente (pH o EC, según su propio
+// `tipo` — no se cambia). Recalcula las cantidades sugeridas por regla de 3
+// si se editaron los datos de la prueba en 1 L.
+export interface EditarMedicionNutricionParams {
+  id: number;
+  fecha: string;
+  ph?: number;
+  ec?: number;
+  litros: number;
+  mlAcidoPor1L?: number;
+  gramosAPor1L?: number;
+  gramosBPor1L?: number;
+}
+
+export function editarMedicionNutricion(draft: EstadoInvernadero, p: EditarMedicionNutricionParams) {
+  const m = draft.nutricion?.mediciones.find((x) => x.id === p.id);
+  if (!m) return;
+  m.fecha = p.fecha;
+  m.litros = p.litros;
+  if (m.tipo === 'ph') {
+    m.ph = p.ph;
+    m.mlAcidoPor1L = p.mlAcidoPor1L;
+    m.mlAcidoSugerido = p.mlAcidoPor1L != null ? Math.round(p.mlAcidoPor1L * p.litros * 100) / 100 : undefined;
+  } else {
+    m.ec = p.ec;
+    m.gramosAPor1L = p.gramosAPor1L;
+    m.gramosBPor1L = p.gramosBPor1L;
+    m.gramosASugerido = p.gramosAPor1L != null ? Math.round(p.gramosAPor1L * p.litros * 100) / 100 : undefined;
+    m.gramosBSugerido = p.gramosBPor1L != null ? Math.round(p.gramosBPor1L * p.litros * 100) / 100 : undefined;
+  }
+  log(
+    draft,
+    'Medición editada',
+    `${estanqueNombre(m.estanqueId)} (${m.tipo === 'ph' ? 'pH' : 'EC'}): ${fd(p.fecha)}`
+  );
+}
+
+export function eliminarMedicionNutricion(draft: EstadoInvernadero, id: number) {
+  if (!draft.nutricion) return;
+  const m = draft.nutricion.mediciones.find((x) => x.id === id);
+  draft.nutricion.mediciones = draft.nutricion.mediciones.filter((x) => x.id !== id);
+  if (m) log(draft, 'Medición eliminada', `${estanqueNombre(m.estanqueId)} (${m.tipo === 'ph' ? 'pH' : 'EC'}): ${fd(m.fecha)}`);
+}
+
 export interface RegistrarRecambioAguaParams {
   estanqueId: EstanqueId;
   fecha: string;

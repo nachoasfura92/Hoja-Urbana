@@ -137,6 +137,11 @@ export interface NutricionConfig {
   phMax: number;
   ecVerano: number;
   ecInvierno: number;
+  // Dosis estándar de fábrica (gramos por litro) de cada polvo, para preparar
+  // la solución de prueba de 1 L antes de medir EC — polvo A ("Blanca") y
+  // polvo B ("Café"). Sugerida, editable por el operador.
+  dosisAPorLitro: number;
+  dosisBPorLitro: number;
   periodicidadPhDias: Record<EstanqueId, number>;
   periodicidadEcDias: Record<EstanqueId, number>;
   periodicidadRecambioDias: Record<EstanqueId, number>;
