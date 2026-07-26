@@ -32,6 +32,8 @@ const TABLAS = [
   'nutricion_estanque_config',
   'nutricion_mediciones',
   'nutricion_recambios',
+  'clientes',
+  'pedidos_clientes',
 ];
 
 function log(msg) {

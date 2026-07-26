@@ -13,6 +13,7 @@ import {
   Package,
   Route,
   Sprout,
+  Users,
   Wheat,
   type LucideIcon,
 } from 'lucide-react';
@@ -55,6 +56,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: 'Administración',
     items: [
+      { id: 'clientes', label: 'Clientes', icon: Users },
       { id: 'venta', label: 'Calendario venta', icon: LineChart },
       { id: 'plan', label: 'Plan siembra', icon: Route },
       { id: 'inventario', label: 'Inventario', icon: Package },

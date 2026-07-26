@@ -3,7 +3,7 @@
 // directamente, igual que el original modificaba el objeto global `S`.
 
 import { addSlot, defaultNutricion, diasEntreFechas, estanqueNombre, fd, fmas, fracTubosStr, hoy, planHoy, remSlot } from './helpers';
-import type { EstadoInvernadero, EstanqueId, Etapa, Lote, NutricionConfig } from './types';
+import type { EstadoInvernadero, EstanqueId, Etapa, Lote, NutricionConfig, PeriodicidadPedido } from './types';
 
 export function log(draft: EstadoInvernadero, accion: string, detalle: string, autor?: string) {
   if (!draft.historial) draft.historial = [];
@@ -546,4 +546,100 @@ export function limpiarBancal(draft: EstadoInvernadero, k: string) {
       log(draft, 'Baja', `${l.varNom} removido de ${k}`);
     });
   if (draft.bancales) draft.bancales[k] = [];
+}
+
+// ── Clientes ──────────────────────────────────────────────────────────
+
+export interface ClienteParams {
+  nombre: string;
+  rut?: string;
+  direccionFacturacion?: string;
+  direccionEntrega?: string;
+  correo?: string;
+  telefono?: string;
+  notas?: string;
+}
+
+export function addCliente(draft: EstadoInvernadero, p: ClienteParams) {
+  if (!draft.clientes) draft.clientes = [];
+  draft.clientes.push({ id: draft.nextId++, ...p });
+  log(draft, 'Nuevo cliente', p.nombre);
+}
+
+export function editCliente(draft: EstadoInvernadero, params: { id: number } & ClienteParams) {
+  const c = draft.clientes.find((x) => x.id === params.id);
+  if (!c) return;
+  Object.assign(c, params);
+  log(draft, 'Cliente editado', c.nombre);
+}
+
+// Al eliminar un cliente se eliminan también sus pedidos: ya no representan
+// demanda real de nadie.
+export function deleteCliente(draft: EstadoInvernadero, id: number) {
+  const c = draft.clientes.find((x) => x.id === id);
+  draft.clientes = draft.clientes.filter((x) => x.id !== id);
+  if (draft.pedidos) draft.pedidos = draft.pedidos.filter((p) => p.clienteId !== id);
+  log(draft, 'Cliente eliminado', c ? c.nombre : '?');
+}
+
+// ── Pedidos de clientes ──────────────────────────────────────────────────
+
+export interface PedidoParams {
+  clienteId: number;
+  varId: number;
+  varNom: string;
+  plantas: number;
+  periodicidad: PeriodicidadPedido;
+  freq?: number;
+  dp: number;
+  de: number;
+  da: number;
+  fechaEntrega: string;
+  notas?: string;
+}
+
+export function addPedido(draft: EstadoInvernadero, p: PedidoParams) {
+  if (!draft.pedidos) draft.pedidos = [];
+  draft.pedidos.push({ id: draft.nextId++, cumplido: false, ...p });
+  log(draft, 'Nuevo pedido', `${p.varNom} × ${p.plantas} (${p.periodicidad === 'unico' ? 'único' : `cada ${p.freq}d`})`);
+}
+
+export function editPedido(draft: EstadoInvernadero, params: { id: number } & PedidoParams) {
+  const pe = draft.pedidos.find((x) => x.id === params.id);
+  if (!pe) return;
+  Object.assign(pe, params);
+  log(draft, 'Pedido editado', `${pe.varNom} × ${pe.plantas}`);
+}
+
+export function deletePedido(draft: EstadoInvernadero, id: number) {
+  const p = draft.pedidos.find((x) => x.id === id);
+  draft.pedidos = draft.pedidos.filter((x) => x.id !== id);
+  if (p) log(draft, 'Pedido eliminado', `${p.varNom} × ${p.plantas}`);
+}
+
+// Siembra un pedido único (crea el lote, igual que confirmarSiembra) y lo
+// marca como cumplido para que deje de aparecer en pendientes.
+export interface CumplirPedidoUnicoParams {
+  pedidoId: number;
+  fechaSiembra: string;
+  bandera: number;
+  autor?: string;
+}
+
+export function cumplirPedidoUnico(draft: EstadoInvernadero, params: CumplirPedidoUnicoParams) {
+  const p = draft.pedidos.find((x) => x.id === params.pedidoId);
+  if (!p) return;
+  confirmarSiembra(draft, {
+    vId: p.varId,
+    varNombre: p.varNom,
+    plantas: p.plantas,
+    fechaSiembra: params.fechaSiembra,
+    dp: p.dp,
+    de: p.de,
+    da: p.da,
+    notas: `Pedido de cliente${p.notas ? ' — ' + p.notas : ''}`,
+    bandera: params.bandera,
+    autor: params.autor,
+  });
+  p.cumplido = true;
 }

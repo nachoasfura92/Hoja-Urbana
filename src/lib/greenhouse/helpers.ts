@@ -5,6 +5,7 @@ import { PT, COLORS_VAR, ESTANQUES } from './constants';
 import type {
   Bancales,
   BancalSlot,
+  Cliente,
   CosechaRecord,
   EstadoInvernadero,
   EstanqueId,
@@ -13,6 +14,7 @@ import type {
   MedicionNutricion,
   Nutricion,
   NutricionConfig,
+  PedidoCliente,
   PlanItem,
   RecambioAgua,
   TipoMedicionNutricion,
@@ -417,6 +419,8 @@ export function defS(): EstadoInvernadero {
     historial: [],
     cosechas: [],
     nutricion: defaultNutricion(),
+    clientes: [],
+    pedidos: [],
     nextId: 1,
   };
 }
@@ -518,6 +522,77 @@ export function serieNutricionLote(
   }
 
   return puntos.sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+// ── Clientes y pedidos ─────────────────────────────────────────────────
+
+export interface DemandaVariedad {
+  varId: number;
+  varNom: string;
+  freq: number;
+  plantas: number;
+  // Pauta de referencia (del primer pedido del grupo) para sugerir un plan de
+  // siembra nuevo cuando todavía no existe uno para esta variedad+frecuencia.
+  dp: number;
+  de: number;
+  da: number;
+  pedidos: { pedidoId: number; clienteId: number; clienteNombre: string; plantas: number }[];
+  planExistente: PlanItem | null;
+}
+
+// Agrupa todos los pedidos recurrentes por variedad+frecuencia y suma las
+// plantas: si dos clientes piden la misma variedad con la misma periodicidad,
+// se combinan en una sola fila (para armar un solo plan de siembra que cubra
+// a ambos). Compara contra el plan de siembra existente para esa misma
+// variedad+frecuencia, si ya hay uno, para saber si falta ajustarlo.
+export function calcularDemandaAgregada(
+  pedidos: PedidoCliente[],
+  clientes: Cliente[],
+  plan: PlanItem[]
+): DemandaVariedad[] {
+  const grupos = new Map<string, DemandaVariedad>();
+  (pedidos || [])
+    .filter((p) => p.periodicidad === 'recurrente' && p.freq)
+    .forEach((p) => {
+      const key = `${p.varId}_${p.freq}`;
+      if (!grupos.has(key)) {
+        grupos.set(key, {
+          varId: p.varId,
+          varNom: p.varNom,
+          freq: p.freq!,
+          plantas: 0,
+          dp: p.dp,
+          de: p.de,
+          da: p.da,
+          pedidos: [],
+          planExistente: (plan || []).find((pl) => pl.varId === p.varId && pl.freq === p.freq) || null,
+        });
+      }
+      const g = grupos.get(key)!;
+      g.plantas += p.plantas;
+      const cliente = (clientes || []).find((c) => c.id === p.clienteId);
+      g.pedidos.push({ pedidoId: p.id, clienteId: p.clienteId, clienteNombre: cliente?.nombre ?? '?', plantas: p.plantas });
+    });
+  return [...grupos.values()].sort((a, b) => a.varNom.localeCompare(b.varNom) || a.freq - b.freq);
+}
+
+export function pedidosUnicosPendientes(pedidos: PedidoCliente[]): PedidoCliente[] {
+  return (pedidos || [])
+    .filter((p) => p.periodicidad === 'unico' && !p.cumplido)
+    .sort((a, b) => a.fechaEntrega.localeCompare(b.fechaEntrega));
+}
+
+// Fecha de siembra sugerida para un pedido: la fecha de entrega menos el
+// ciclo completo (plantines + engorda + adulto), corrida al próximo día
+// hábil (no se trabaja fines de semana).
+export function fechaSiembraPedido(p: PedidoCliente): string {
+  return proximoDiaHabil(fmas(p.fechaEntrega, -(p.dp + p.de + p.da)));
+}
+
+export function pedidosDeCliente(pedidos: PedidoCliente[], clienteId: number): PedidoCliente[] {
+  return (pedidos || [])
+    .filter((p) => p.clienteId === clienteId)
+    .sort((a, b) => a.fechaEntrega.localeCompare(b.fechaEntrega));
 }
 
 // ── Historial de cosechas (filtros por variedad / semana / mes) ────────────

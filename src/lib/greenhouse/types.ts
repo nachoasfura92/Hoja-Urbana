@@ -153,6 +153,40 @@ export interface Nutricion {
   recambios: RecambioAgua[];
 }
 
+// ── Clientes y pedidos ─────────────────────────────────────────────────
+// Un cliente puede tener varios pedidos; cada pedido pide una variedad
+// puntual, en una cantidad, una vez ("único") o repitiéndose cada N días
+// ("recurrente"). La demanda agregada de todos los pedidos recurrentes es lo
+// que alimenta el plan de siembra (ver calcularDemandaAgregada en helpers.ts).
+export interface Cliente {
+  id: number;
+  nombre: string;
+  rut?: string;
+  direccionFacturacion?: string;
+  direccionEntrega?: string;
+  correo?: string;
+  telefono?: string;
+  notas?: string;
+}
+
+export type PeriodicidadPedido = 'unico' | 'recurrente';
+
+export interface PedidoCliente {
+  id: number;
+  clienteId: number;
+  varId: number;
+  varNom: string;
+  plantas: number;
+  periodicidad: PeriodicidadPedido;
+  freq?: number; // días entre entregas — solo si periodicidad === 'recurrente'
+  dp: number;
+  de: number;
+  da: number;
+  fechaEntrega: string; // próxima entrega objetivo (o la única, si es 'unico')
+  cumplido: boolean; // solo relevante para pedidos 'unico' ya sembrados
+  notas?: string;
+}
+
 export interface EstadoInvernadero {
   vars: Variedad[];
   lotes: Lote[];
@@ -163,5 +197,7 @@ export interface EstadoInvernadero {
   historial: HistorialEntry[];
   cosechas: CosechaRecord[];
   nutricion: Nutricion;
+  clientes: Cliente[];
+  pedidos: PedidoCliente[];
   nextId: number;
 }

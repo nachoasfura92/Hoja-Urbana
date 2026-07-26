@@ -14,6 +14,7 @@ import { defS, defaultNutricionConfig } from './helpers';
 import { ESTANQUES } from './constants';
 import type {
   Bancales,
+  Cliente,
   CosechaRecord,
   EstadoInvernadero,
   EstanqueId,
@@ -21,6 +22,7 @@ import type {
   Lote,
   MedicionNutricion,
   Movimiento,
+  PedidoCliente,
   PlanItem,
   RecambioAgua,
   Variedad,
@@ -60,6 +62,8 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     nutricionEstanqueConfigRes,
     nutricionMedicionesRes,
     nutricionRecambiosRes,
+    clientesRes,
+    pedidosRes,
   ] = await Promise.all([
     supabase.from('variedades').select('id, nombre, marca, tipo').order('id'),
     supabase.from('lotes').select('*').order('id'),
@@ -75,6 +79,8 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     supabase.from('nutricion_estanque_config').select('*'),
     supabase.from('nutricion_mediciones').select('*').order('id'),
     supabase.from('nutricion_recambios').select('*').order('id'),
+    supabase.from('clientes').select('*').order('id'),
+    supabase.from('pedidos_clientes').select('*').order('id'),
   ]);
 
   for (const res of [
@@ -90,6 +96,8 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     nutricionEstanqueConfigRes,
     nutricionMedicionesRes,
     nutricionRecambiosRes,
+    clientesRes,
+    pedidosRes,
   ]) {
     if (res.error) throw new Error(res.error.message);
   }
@@ -234,6 +242,33 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     recambios,
   };
 
+  const clientes: Cliente[] = (clientesRes.data || []).map((c) => ({
+    id: c.id,
+    nombre: c.nombre,
+    rut: c.rut ?? undefined,
+    direccionFacturacion: c.direccion_facturacion ?? undefined,
+    direccionEntrega: c.direccion_entrega ?? undefined,
+    correo: c.correo ?? undefined,
+    telefono: c.telefono ?? undefined,
+    notas: c.notas ?? undefined,
+  }));
+
+  const pedidos: PedidoCliente[] = (pedidosRes.data || []).map((p) => ({
+    id: p.id,
+    clienteId: p.cliente_id,
+    varId: p.variedad_id,
+    varNom: nombreVar(p.variedad_id),
+    plantas: p.plantas,
+    periodicidad: p.periodicidad,
+    freq: p.frecuencia_dias ?? undefined,
+    dp: p.dias_plantines,
+    de: p.dias_engorda,
+    da: p.dias_adulto,
+    fechaEntrega: p.fecha_entrega,
+    cumplido: p.cumplido,
+    notas: p.notas ?? undefined,
+  }));
+
   const todosLosIds: number[] = [
     ...vars.map((v) => v.id),
     ...lotes.map((l) => l.id),
@@ -243,6 +278,8 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     ...cosechas.map((c) => c.id),
     ...mediciones.map((m) => m.id),
     ...recambios.map((r) => r.id),
+    ...clientes.map((c) => c.id),
+    ...pedidos.map((p) => p.id),
   ];
   const nextId = (todosLosIds.length ? Math.max(...todosLosIds) : 0) + 1;
 
@@ -257,6 +294,8 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     historial,
     cosechas,
     nutricion,
+    clientes,
+    pedidos,
     nextId: Math.max(nextId, base.nextId),
   };
 }
@@ -406,4 +445,32 @@ export async function guardarEstadoEnTablas(supabase: DB, state: EstadoInvernade
     autor: r.autor ?? null,
   }));
   await upsertYPodar(supabase, 'nutricion_recambios', recambioRows, 'id');
+
+  const clienteRows = (state.clientes || []).map((c) => ({
+    id: c.id,
+    nombre: c.nombre,
+    rut: c.rut ?? null,
+    direccion_facturacion: c.direccionFacturacion ?? null,
+    direccion_entrega: c.direccionEntrega ?? null,
+    correo: c.correo ?? null,
+    telefono: c.telefono ?? null,
+    notas: c.notas ?? null,
+  }));
+  await upsertYPodar(supabase, 'clientes', clienteRows, 'id');
+
+  const pedidoRows = (state.pedidos || []).map((p) => ({
+    id: p.id,
+    cliente_id: p.clienteId,
+    variedad_id: p.varId,
+    plantas: p.plantas,
+    periodicidad: p.periodicidad,
+    frecuencia_dias: p.freq ?? null,
+    dias_plantines: p.dp,
+    dias_engorda: p.de,
+    dias_adulto: p.da,
+    fecha_entrega: p.fechaEntrega,
+    cumplido: p.cumplido,
+    notas: p.notas ?? null,
+  }));
+  await upsertYPodar(supabase, 'pedidos_clientes', pedidoRows, 'id');
 }
