@@ -1,16 +1,26 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Pencil, Plus } from 'lucide-react';
+import { AlertTriangle, Pencil, Plus, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertRow } from '@/components/dashboard/alert-row';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { addPlanItem, deletePlanItem, editPlanItem } from '@/lib/greenhouse/actions';
-import { dd, fd, gv, planVence, varLabel, varLabelPorId } from '@/lib/greenhouse/helpers';
+import {
+  calcularDemandaAgregada,
+  dd,
+  fd,
+  gv,
+  planVence,
+  varLabel,
+  varLabelPorId,
+  type DemandaVariedad,
+} from '@/lib/greenhouse/helpers';
 import type { PlanItem } from '@/lib/greenhouse/types';
 
 const FRECUENCIAS = [
@@ -49,6 +59,17 @@ export function PlanPage() {
     () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])),
     [state.vars]
   );
+
+  // Demanda agregada de todos los pedidos recurrentes de clientes, agrupada
+  // por variedad+frecuencia (ver módulo Clientes) — el plan de siembra existe
+  // para cumplir con esto, así que se muestra en vivo al elegir variedad.
+  const demanda = useMemo(
+    () => calcularDemandaAgregada(state.pedidos, state.clientes, state.plan),
+    [state.pedidos, state.clientes, state.plan]
+  );
+  const demandaDeVariedad = (vIdNum: number | null) => (vIdNum ? demanda.filter((d) => d.varId === vIdNum) : []);
+  const demandaExacta = (vIdNum: number | null, freqStr: string) =>
+    demanda.find((d) => d.varId === vIdNum && d.freq === parseInt(freqStr, 10)) || null;
 
   function handleAgregar() {
     const vIdNum = vId ? parseInt(vId, 10) : null;
@@ -99,6 +120,10 @@ export function PlanPage() {
     setEditingId(null);
   }
 
+  const vIdNumForm = vId ? parseInt(vId, 10) : null;
+  const demandaFormVariedad = demandaDeVariedad(vIdNumForm);
+  const demandaFormExacta = demandaExacta(vIdNumForm, freq);
+
   return (
     <div className="grid gap-4">
       <Card>
@@ -139,10 +164,28 @@ export function PlanPage() {
               </SelectContent>
             </Select>
           </div>
+
+          {demandaFormVariedad.length > 0 && (
+            <DemandaClientesBox
+              buckets={demandaFormVariedad}
+              freqActual={freq}
+              onUsar={(d) => {
+                setFreq(String(d.freq));
+                setPlantas(d.plantas);
+              }}
+            />
+          )}
+
           <div className="grid gap-1.5">
             <Label>Plantas a sembrar</Label>
             <Input type="number" min={1} value={plantas} onChange={(e) => setPlantas(parseInt(e.target.value, 10) || 0)} />
           </div>
+          {demandaFormExacta && plantas < demandaFormExacta.plantas && (
+            <AlertRow kind="warning" icon={AlertTriangle}>
+              Los clientes piden <strong>{demandaFormExacta.plantas}</strong> plantas con esta frecuencia — este plan
+              quedaría {demandaFormExacta.plantas - plantas} por debajo.
+            </AlertRow>
+          )}
           <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1.5">
               <Label>Días plantines</Label>
@@ -170,6 +213,9 @@ export function PlanPage() {
             const diasSig = p.ultimaSiembra ? Math.max(0, p.freq - dd(p.ultimaSiembra)) : 0;
 
             if (editingId === p.id) {
+              const evIdNum = evId ? parseInt(evId, 10) : null;
+              const demandaEditVariedad = demandaDeVariedad(evIdNum);
+              const demandaEditExacta = demandaExacta(evIdNum, efreq);
               return (
                 <Card key={p.id}>
                   <CardContent className="grid gap-3 pt-4">
@@ -203,6 +249,18 @@ export function PlanPage() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {demandaEditVariedad.length > 0 && (
+                      <DemandaClientesBox
+                        buckets={demandaEditVariedad}
+                        freqActual={efreq}
+                        onUsar={(d) => {
+                          setEfreq(String(d.freq));
+                          setEplantas(d.plantas);
+                        }}
+                      />
+                    )}
+
                     <div className="grid gap-1.5">
                       <Label>Plantas a sembrar</Label>
                       <Input
@@ -212,6 +270,12 @@ export function PlanPage() {
                         onChange={(e) => setEplantas(parseInt(e.target.value, 10) || 0)}
                       />
                     </div>
+                    {demandaEditExacta && eplantas < demandaEditExacta.plantas && (
+                      <AlertRow kind="warning" icon={AlertTriangle}>
+                        Los clientes piden <strong>{demandaEditExacta.plantas}</strong> plantas con esta frecuencia — este
+                        plan quedaría {demandaEditExacta.plantas - eplantas} por debajo.
+                      </AlertRow>
+                    )}
                     <div className="grid grid-cols-3 gap-3">
                       <div className="grid gap-1.5">
                         <Label>Días plantines</Label>
@@ -237,6 +301,8 @@ export function PlanPage() {
               );
             }
 
+            const demandaItem = demandaExacta(p.varId, String(p.freq));
+
             return (
               <Card key={p.id} className="py-0">
                 <CardContent className="flex items-center justify-between gap-2 px-3.5 py-2.5">
@@ -253,6 +319,21 @@ export function PlanPage() {
                       >
                         {vence ? 'Sembrar ya' : diasSig <= 1 ? 'Mañana' : `en ${diasSig} días`}
                       </Badge>
+                      {demandaItem && (
+                        <Badge
+                          variant="outline"
+                          className={
+                            p.plantas >= demandaItem.plantas
+                              ? 'gap-1 border-transparent bg-success/10 text-success'
+                              : 'gap-1 border-transparent bg-warning/10 text-warning'
+                          }
+                        >
+                          <Users className="size-3" />
+                          {p.plantas >= demandaItem.plantas
+                            ? 'Cubre a clientes'
+                            : `Faltan ${demandaItem.plantas - p.plantas} para clientes`}
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Cada {p.freq === 1 ? 'día' : `${p.freq} días`} · {p.plantas} plantas ·{' '}
@@ -261,6 +342,11 @@ export function PlanPage() {
                     <div className="text-xs text-muted-foreground">
                       Pauta: {p.dp}d + {p.de}d + {p.da}d = {p.dp + p.de + p.da} días
                     </div>
+                    {demandaItem && (
+                      <div className="text-xs text-muted-foreground">
+                        Pedido por: {demandaItem.pedidos.map((x) => `${x.clienteNombre} (${x.plantas})`).join(' + ')}
+                      </div>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <Button variant="ghost" size="icon" className="size-7" onClick={() => abrirEditar(p)}>
@@ -282,6 +368,42 @@ export function PlanPage() {
           <p className="text-sm text-muted-foreground">Sin plan definido.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+// Muestra, para la variedad elegida en el formulario, cuánto piden los
+// clientes en cada frecuencia (los pedidos recurrentes ya vienen sumados
+// entre clientes — ver calcularDemandaAgregada), para que el plan de siembra
+// se arme a partir de esa cantidad y no de un número inventado.
+function DemandaClientesBox({
+  buckets,
+  freqActual,
+  onUsar,
+}: {
+  buckets: DemandaVariedad[];
+  freqActual: string;
+  onUsar: (d: DemandaVariedad) => void;
+}) {
+  return (
+    <div className="grid gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+      <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <Users className="size-3.5" />
+        Pedidos de clientes para esta variedad
+      </div>
+      {buckets.map((d) => (
+        <div key={d.freq} className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span className={d.freq === parseInt(freqActual, 10) ? 'font-medium' : ''}>
+              Cada {d.freq === 1 ? 'día' : `${d.freq} días`}: <strong>{d.plantas}</strong> plantas
+            </span>
+            <span className="text-xs text-muted-foreground"> — {d.pedidos.map((p) => `${p.clienteNombre} (${p.plantas})`).join(' + ')}</span>
+          </div>
+          <Button type="button" size="sm" variant="outline" className="h-6 shrink-0 px-2 text-xs" onClick={() => onUsar(d)}>
+            Usar {d.plantas}
+          </Button>
+        </div>
+      ))}
     </div>
   );
 }
