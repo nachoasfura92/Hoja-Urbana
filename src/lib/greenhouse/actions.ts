@@ -3,7 +3,7 @@
 // directamente, igual que el original modificaba el objeto global `S`.
 
 import { addSlot, defaultNutricion, diasEntreFechas, estanqueNombre, fd, fmas, fracTubosStr, hoy, planHoy, remSlot } from './helpers';
-import type { EstadoInvernadero, EstanqueId, Etapa, Lote, NutricionConfig, PeriodicidadPedido } from './types';
+import type { Bancales, EstadoInvernadero, EstanqueId, Etapa, Lote, NutricionConfig, PeriodicidadPedido } from './types';
 
 export function log(draft: EstadoInvernadero, accion: string, detalle: string, autor?: string) {
   if (!draft.historial) draft.historial = [];
@@ -190,6 +190,11 @@ export function ejecutarMovimiento(draft: EstadoInvernadero, params: EjecutarMov
   const l = draft.lotes.find((x) => x.id === params.loteId);
   if (!l) return;
   const { sig, fechaMov, bancKey, plantasM, nota, restantes, etapaAnt, mermaRes, autor } = params;
+  // Libera lo que se mueve del bancal de origen (si venía de uno — mesa de
+  // plantines no usa bancales, así que acá no hace nada al traspasar a
+  // engorda) antes de ocuparlo en el destino; si no, el bancal de origen
+  // quedaba mostrando plantas que ya no están ahí.
+  if (l.bancalId) remSlot(draft.bancales, l.bancalId, l.varId, plantasM);
   if (bancKey) addSlot(draft.bancales, bancKey, l.varId, l.varNom, plantasM);
   if (!l.movimientos) l.movimientos = [];
   const bL = bancKey ? ` → Bancal ${bancKey}` : '';
@@ -362,6 +367,31 @@ export function eliminarPlantas(draft: EstadoInvernadero, params: EliminarPlanta
     draft.lotes = draft.lotes.filter((x) => x.id !== params.loteId);
   }
   log(draft, params.esMerma ? 'Merma' : 'Eliminación', `${l.varNom}: ${detalle}`);
+}
+
+// Corrige la cantidad de un lote hacia arriba (ej. un conteo inicial mal
+// hecho, o plantas recuperadas) — a diferencia de eliminarPlantas, acá solo se
+// suma; no toca merma ni el total histórico sembrado (l.plantas), solo lo que
+// hay actualmente en pie.
+export interface AgregarPlantasAjusteParams {
+  loteId: number;
+  plantas: number;
+  nota: string;
+  autor?: string;
+}
+
+export function agregarPlantasAjuste(draft: EstadoInvernadero, params: AgregarPlantasAjusteParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l) return;
+  const p = Math.max(0, params.plantas);
+  if (p <= 0) return;
+  l.plantasRestantes += p;
+  if (l.bancalId) addSlot(draft.bancales, l.bancalId, l.varId, l.varNom, p);
+  const nota = params.nota.trim();
+  const detalle = `+${p} plantas (${fracTubosStr(p)} tubos) · ajuste${nota ? ' · ' + nota : ''}`;
+  if (!l.movimientos) l.movimientos = [];
+  l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Ajuste', detalle, autor: params.autor });
+  log(draft, 'Ajuste', `${l.varNom}: ${detalle}`, params.autor);
 }
 
 // Ajusta la pauta (días objetivo por etapa) de un lote puntual, sin afectar
@@ -546,6 +576,21 @@ export function limpiarBancal(draft: EstadoInvernadero, k: string) {
       log(draft, 'Baja', `${l.varNom} removido de ${k}`);
     });
   if (draft.bancales) draft.bancales[k] = [];
+}
+
+// Reconstruye la ocupación de todos los bancales desde cero, a partir de los
+// lotes realmente activos (bancalId + plantasRestantes). Corrige cualquier
+// desfase acumulado (ej. el bug donde un traspaso dejaba plantas "fantasma"
+// en el bancal de origen) sin depender de arreglar bancal por bancal.
+export function reconciliarBancales(draft: EstadoInvernadero) {
+  const nuevo: Bancales = {};
+  draft.lotes
+    .filter((l) => l.bancalId && l.etapa !== 'cosechado' && l.plantasRestantes > 0)
+    .forEach((l) => {
+      addSlot(nuevo, l.bancalId as string, l.varId, l.varNom, l.plantasRestantes);
+    });
+  draft.bancales = nuevo;
+  log(draft, 'Bancales recalculados', 'Se reconstruyó la ocupación de todos los bancales desde los lotes activos');
 }
 
 // ── Clientes ──────────────────────────────────────────────────────────

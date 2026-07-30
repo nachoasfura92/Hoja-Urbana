@@ -1,9 +1,11 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LayoutGrid } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { LayoutGrid, RefreshCw } from 'lucide-react';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
+import { reconciliarBancales } from '@/lib/greenhouse/actions';
 import { capacidadTubos, dr, fmas, fracTubosStr, getBanc, plantasEnBanc } from '@/lib/greenhouse/helpers';
 import { cn } from '@/lib/utils';
 import type { TipoBancal } from '@/lib/greenhouse/modals-context';
@@ -100,8 +102,26 @@ function NaveGrid({ bancales }: { bancales: BancalRef[] }) {
 }
 
 export function BancalesPage() {
+  const { update } = useGreenhouse();
+
+  function recalcular() {
+    if (
+      !confirm(
+        '¿Recalcular la ocupación de todos los bancales a partir de los lotes activos? Corrige cualquier desfase acumulado (por ejemplo, plantas que quedaron mostrándose en un bancal después de traspasarlas a otro).'
+      )
+    )
+      return;
+    update((draft) => reconciliarBancales(draft));
+  }
+
   return (
     <div className="grid gap-4">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={recalcular}>
+          <RefreshCw className="size-3.5" />
+          Recalcular ocupación
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-1.5 text-sm font-medium">

@@ -1,14 +1,17 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Wheat } from 'lucide-react';
+import { Download, Wheat } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import {
   fd,
   filtrarCosechas,
   fracTubosStr,
+  gv,
+  hoy,
   resumenCosechasPorVariedad,
   varLabel,
   varLabelPorId,
@@ -36,14 +39,45 @@ export function CosechasPage() {
   const resumen = useMemo(() => resumenCosechasPorVariedad(filtradas), [filtradas]);
   const totalPlantas = filtradas.reduce((t, c) => t + c.plantas, 0);
 
+  // Exporta exactamente lo que está filtrado en pantalla (variedad/período).
+  // CSV con BOM UTF-8 para que Excel muestre bien las tildes/ñ, sin depender
+  // de ninguna librería nueva.
+  function exportarExcel() {
+    const encabezados = ['Fecha', 'Variedad', 'Nombre', 'Plantas', 'Tubos', 'Registrado por', 'Notas'];
+    const escapar = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const filas = filtradas.map((c) => {
+      const v = gv(state.vars, c.varId);
+      return [fd(c.fecha), v.nombre, v.tipo || '', String(c.plantas), fracTubosStr(c.plantas), c.autor || '', c.nota || ''];
+    });
+    const csv = [encabezados, ...filas].map((fila) => fila.map(escapar).join(',')).join('\r\n');
+    const bom = String.fromCharCode(0xfeff);
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hoja-urbana-cosechas-${hoy()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="grid gap-4">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
           <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
             <Wheat className="size-4 text-muted-foreground" />
             Filtros
           </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={exportarExcel}
+            disabled={!filtradas.length}
+          >
+            <Download className="size-3.5" />
+            Exportar a Excel
+          </Button>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <div className="grid gap-1.5">

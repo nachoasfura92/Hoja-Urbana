@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { MiniProgress } from '@/components/dashboard/mini-progress';
 import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
-import { editarPauta, eliminarPlantas } from '@/lib/greenhouse/actions';
+import { agregarPlantasAjuste, editarPauta, eliminarPlantas } from '@/lib/greenhouse/actions';
 import { dd, fd, fracTubosStr, serieNutricionLote, varLabelPorId } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
@@ -43,18 +44,23 @@ export function LoteModal() {
   const [esMerma, setEsMerma] = useState(false);
   const [motivo, setMotivo] = useState('');
 
+  const [agregarOpen, setAgregarOpen] = useState(false);
+  const [plantasAgregar, setPlantasAgregar] = useState(0);
+  const [notaAgregar, setNotaAgregar] = useState('');
+
   const [editandoPauta, setEditandoPauta] = useState(false);
   const [dpEdit, setDpEdit] = useState(0);
   const [deEdit, setDeEdit] = useState(0);
   const [daEdit, setDaEdit] = useState(0);
 
-  // Cierra los sub-formularios (eliminar, editar pauta) al cambiar de lote
-  // (patrón "ajustar estado durante el render" en vez de un efecto).
+  // Cierra los sub-formularios (eliminar, agregar, editar pauta) al cambiar
+  // de lote (patrón "ajustar estado durante el render" en vez de un efecto).
   const [lastLoteId, setLastLoteId] = useState<number | null>(null);
   if (lote && lote.id !== lastLoteId) {
     setLastLoteId(lote.id);
     setEditandoPauta(false);
     setEliminarOpen(false);
+    setAgregarOpen(false);
   }
 
   if (!lote) {
@@ -98,6 +104,19 @@ export function LoteModal() {
     closeBancal();
   }
 
+  function abrirAgregar() {
+    setPlantasAgregar(0);
+    setNotaAgregar('');
+    setAgregarOpen(true);
+  }
+
+  function confirmarAgregar() {
+    update((draft) =>
+      agregarPlantasAjuste(draft, { loteId: lote!.id, plantas: plantasAgregar, nota: notaAgregar.trim(), autor })
+    );
+    setAgregarOpen(false);
+  }
+
   function handleAvanzar() {
     closeLote();
     if (sig === 'cosechado') openCosechar(lote!.id);
@@ -108,7 +127,7 @@ export function LoteModal() {
 
   return (
     <>
-      <Dialog open={!!loteId && !eliminarOpen} onOpenChange={(o) => !o && closeLote()}>
+      <Dialog open={!!loteId && !eliminarOpen && !agregarOpen} onOpenChange={(o) => !o && closeLote()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -233,6 +252,10 @@ export function LoteModal() {
           </div>
 
           <DialogFooter>
+            <Button variant="outline" className="gap-1" onClick={abrirAgregar}>
+              <Plus className="size-3.5" />
+              Agregar
+            </Button>
             <Button variant="destructive" onClick={abrirEliminar}>
               Eliminar
             </Button>
@@ -240,6 +263,43 @@ export function LoteModal() {
               Cerrar
             </Button>
             {sig && <Button onClick={handleAvanzar}>{sig === 'cosechado' ? 'Cosechar' : `→ ${sig}`}</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={agregarOpen} onOpenChange={setAgregarOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar plantas (ajuste) — {varLabelPorId(state.vars, lote.varId)}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-1.5">
+              <Label>¿Cuántas plantas deseas agregar?</Label>
+              <Input
+                type="number"
+                min={1}
+                value={plantasAgregar}
+                onChange={(e) => setPlantasAgregar(parseInt(e.target.value, 10) || 0)}
+              />
+              <p className="text-xs text-muted-foreground">{fracTubosStr(plantasAgregar)} tubos equivalentes</p>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Motivo (opcional)</Label>
+              <Textarea
+                rows={2}
+                placeholder="Ej: conteo inicial estaba bajo, se recuperaron plantas..."
+                value={notaAgregar}
+                onChange={(e) => setNotaAgregar(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAgregarOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarAgregar} disabled={!plantasAgregar}>
+              Agregar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
