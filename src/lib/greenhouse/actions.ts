@@ -144,7 +144,11 @@ export function confirmarSiembra(draft: EstadoInvernadero, p: ConfirmarSiembraPa
         id: draft.nextId++,
         fecha: p.fechaSiembra,
         accion: 'Siembra',
-        detalle: `${p.plantas} plantas (${fracTubosStr(p.plantas)} tubos)${p.notas ? ' — ' + p.notas : ''}`,
+        // El N° de bandera queda registrado acá para siempre (a diferencia
+        // del campo `bandera` en vivo, que se libera cuando el lote se
+        // cosecha por completo) — así el lote se puede rastrear por su
+        // bandera incluso después de esa liberación.
+        detalle: `${p.plantas} plantas (${fracTubosStr(p.plantas)} tubos) · bandera N°${p.bandera}${p.notas ? ' — ' + p.notas : ''}`,
         autor: p.autor,
       },
     ],
@@ -229,8 +233,9 @@ export function ejecutarMovimiento(draft: EstadoInvernadero, params: EjecutarMov
       etapa: sig,
       fechaEtapa: fechaMov,
       bancalId: bancKey || null,
-      // La bandera es solo de mesa de plantines: se libera al avanzar de etapa.
-      bandera: 0,
+      // La bandera sigue al lote toda su vida (se hereda del spread `...l`
+      // sin tocarla acá) — identifica el lote incluso en bancales; recién se
+      // libera cuando el lote se cosecha por completo (ver cosechar()).
       movimientos: [
         { id: draft.nextId++, fecha: fechaMov, accion: `→ ${sig}`, detalle: `${plantasM} plantas${bL} (separado)`, autor },
       ],
@@ -243,7 +248,8 @@ export function ejecutarMovimiento(draft: EstadoInvernadero, params: EjecutarMov
     l.fechaEtapa = fechaMov;
     l.plantasRestantes = plantasM;
     l.bancalId = bancKey || l.bancalId;
-    l.bandera = 0;
+    // La bandera ya no se libera acá: sigue al lote hasta que se coseche
+    // por completo (ver cosechar()).
     if (sig === 'adulto') l.fechaVenta = fmas(fechaMov, l.da);
   }
   log(draft, 'Movimiento', `${l.varNom}: ${etapaAnt}→${sig} | ${plantasM} plantas (${fracTubosStr(plantasM)} tubos)${bL}`, autor);
@@ -284,6 +290,10 @@ export function cosechar(
     l.etapa = 'cosechado';
     l.bancalId = null;
     l.plantasRestantes = 0;
+    // Recién acá se libera la bandera (cosecha completa, no queda nada del
+    // lote en pie) — antes de esto la bandera sigue identificando al lote en
+    // cualquier etapa (mesa de plantines, engorda o adulto).
+    l.bandera = 0;
   }
 }
 

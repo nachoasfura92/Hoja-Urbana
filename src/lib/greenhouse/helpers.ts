@@ -336,8 +336,10 @@ export interface FiltrosLotes {
   diasCosechaMax?: number | null;
 }
 
-// Solo busca entre lotes activos: una vez cosechado, el lote ya no está
-// físicamente en el invernadero (su bandera ya se recicló en otra siembra).
+// Solo busca entre lotes activos: una vez cosechado por completo, el lote ya
+// no está físicamente en el invernadero (su bandera ya se liberó y puede
+// haberse reciclado en otra siembra). Mientras esté activo (en mesa de
+// plantines, engorda o adulto) se puede encontrar por su bandera.
 export function buscarLotes(lotes: Lote[], filtros: FiltrosLotes): Lote[] {
   return (lotes || [])
     .filter((l) => l.etapa !== 'cosechado')
@@ -348,12 +350,13 @@ export function buscarLotes(lotes: Lote[], filtros: FiltrosLotes): Lote[] {
     .sort((a, b) => dr(a.fechaVenta) - dr(b.fechaVenta));
 }
 
-// ── Banderas (identificador físico en mesa de plantines) ───────────────────
-// Solo está "en uso" mientras el lote sigue en mesa de plantines; al
-// traspasarse a engorda se libera (ver ejecutarMovimiento) para reciclarse
-// en siembras futuras y mantener un inventario mínimo de banderitas físicas.
+// ── Banderas (identificador físico del lote durante todo su ciclo) ────────
+// La bandera identifica al lote en mesa de plantines, engorda y adulto — no
+// se libera al traspasarlo de etapa. Solo se libera cuando el lote se
+// cosecha por completo (ver cosechar()), para reciclarse en siembras futuras
+// y mantener un inventario mínimo de banderitas físicas.
 export function banderasEnUso(lotes: Lote[]): Set<number> {
-  return new Set((lotes || []).filter((l) => l.etapa === 'plantines' && l.bandera > 0).map((l) => l.bandera));
+  return new Set((lotes || []).filter((l) => l.etapa !== 'cosechado' && l.bandera > 0).map((l) => l.bandera));
 }
 
 // Separado de proximaBandera para no recalcular banderasEnUso (recorre todos

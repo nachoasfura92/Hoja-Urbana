@@ -51,3 +51,6 @@ next-env.d.ts
 # respaldos automáticos locales (ver scripts/backup-supabase.mjs)
 /backups
 /scripts/backup.log
+
+# informes generados (PDF/JPG) — no son código, se generan bajo demanda
+/informes

@@ -3,6 +3,7 @@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MiniProgress } from '@/components/dashboard/mini-progress';
+import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { limpiarBancal } from '@/lib/greenhouse/actions';
@@ -99,7 +100,10 @@ export function BancalModal() {
                   className="cursor-pointer rounded-md border px-3 py-2 transition-colors hover:border-primary"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">{varLabelPorId(state.vars, l.varId)}</div>
+                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                      {varLabelPorId(state.vars, l.varId)}
+                      <BanderaBadge numero={l.bandera} />
+                    </div>
                     <div className="flex gap-1">
                       {tipo === 'adu' && (
                         <Button
