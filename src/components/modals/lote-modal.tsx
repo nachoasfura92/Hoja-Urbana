@@ -14,8 +14,8 @@ import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
-import { agregarPlantasAjuste, editarPauta, eliminarPlantas } from '@/lib/greenhouse/actions';
-import { dd, fd, fracTubosStr, serieNutricionLote, varLabelPorId } from '@/lib/greenhouse/helpers';
+import { agregarPlantasAjuste, editarBandera, editarPauta, eliminarPlantas } from '@/lib/greenhouse/actions';
+import { banderasEnUso, dd, fd, fracTubosStr, serieNutricionLote, varLabelPorId } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
 const SIGUIENTE: Partial<Record<Etapa, Etapa>> = {
@@ -53,14 +53,19 @@ export function LoteModal() {
   const [deEdit, setDeEdit] = useState(0);
   const [daEdit, setDaEdit] = useState(0);
 
-  // Cierra los sub-formularios (eliminar, agregar, editar pauta) al cambiar
-  // de lote (patrón "ajustar estado durante el render" en vez de un efecto).
+  const [editandoBandera, setEditandoBandera] = useState(false);
+  const [banderaEdit, setBanderaEdit] = useState(0);
+
+  // Cierra los sub-formularios (eliminar, agregar, editar pauta/bandera) al
+  // cambiar de lote (patrón "ajustar estado durante el render" en vez de un
+  // efecto).
   const [lastLoteId, setLastLoteId] = useState<number | null>(null);
   if (lote && lote.id !== lastLoteId) {
     setLastLoteId(lote.id);
     setEditandoPauta(false);
     setEliminarOpen(false);
     setAgregarOpen(false);
+    setEditandoBandera(false);
   }
 
   if (!lote) {
@@ -75,6 +80,7 @@ export function LoteModal() {
   const dObj = lote.etapa === 'plantines' ? lote.dp : lote.etapa === 'engorda' ? lote.de : lote.da;
   const pct = Math.min(100, Math.round((dias / dObj) * 100));
   const sig = SIGUIENTE[lote.etapa];
+  const banderaDuplicada = banderaEdit > 0 && banderaEdit !== lote.bandera && banderasEnUso(state.lotes).has(banderaEdit);
 
   function abrirEditarPauta() {
     setDpEdit(lote!.dp);
@@ -102,6 +108,16 @@ export function LoteModal() {
     setEliminarOpen(false);
     closeLote();
     closeBancal();
+  }
+
+  function abrirEditarBandera() {
+    setBanderaEdit(lote!.bandera || 0);
+    setEditandoBandera(true);
+  }
+
+  function guardarBandera() {
+    update((draft) => editarBandera(draft, { loteId: lote!.id, bandera: banderaEdit, autor }));
+    setEditandoBandera(false);
   }
 
   function abrirAgregar() {
@@ -180,6 +196,45 @@ export function LoteModal() {
             ) : (
               <div className="text-sm text-muted-foreground">
                 Plantines {lote.dp}d · Engorda {lote.de}d · Adulto {lote.da}d
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-md border px-3 py-2">
+            <div className="mb-1.5 flex items-center justify-between">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bandera</h4>
+              {!editandoBandera && (
+                <Button variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-xs" onClick={abrirEditarBandera}>
+                  <Pencil className="size-3" />
+                  Editar bandera
+                </Button>
+              )}
+            </div>
+            {editandoBandera ? (
+              <div className="grid gap-1.5">
+                <Input
+                  type="number"
+                  min={0}
+                  value={banderaEdit}
+                  onChange={(e) => setBanderaEdit(parseInt(e.target.value, 10) || 0)}
+                />
+                {banderaDuplicada && (
+                  <p className="text-xs text-warning">
+                    Esa bandera ya está en uso por otro lote activo. Verifica antes de guardar.
+                  </p>
+                )}
+                <div className="mt-1 flex justify-end gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => setEditandoBandera(false)}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" onClick={guardarBandera}>
+                    Guardar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                {lote.bandera > 0 ? `N° ${lote.bandera}` : 'Sin bandera asociada'}
               </div>
             )}
           </div>

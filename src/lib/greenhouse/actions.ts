@@ -404,6 +404,27 @@ export function agregarPlantasAjuste(draft: EstadoInvernadero, params: AgregarPl
   log(draft, 'Ajuste', `${l.varNom}: ${detalle}`, params.autor);
 }
 
+// Corrige a mano el N° de bandera de un lote (ej. para restaurar la
+// asociación en lotes que la perdieron antes de que la bandera pasara a
+// seguir al lote durante todo su ciclo). No valida duplicados acá: eso lo
+// hace la UI contra banderasEnUso, igual que al sembrar.
+export interface EditarBanderaParams {
+  loteId: number;
+  bandera: number;
+  autor?: string;
+}
+
+export function editarBandera(draft: EstadoInvernadero, params: EditarBanderaParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l) return;
+  const antes = l.bandera;
+  l.bandera = params.bandera;
+  const detalle = `Bandera N°${antes || '(ninguna)'} → N°${params.bandera}`;
+  if (!l.movimientos) l.movimientos = [];
+  l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Bandera editada', detalle, autor: params.autor });
+  log(draft, 'Bandera editada', `${l.varNom}: ${detalle}`, params.autor);
+}
+
 // Ajusta la pauta (días objetivo por etapa) de un lote puntual, sin afectar
 // al plan de siembra ni a otros lotes. Si el lote ya está en adulto, recalcula
 // fechaVenta desde la fecha real de entrada a esa etapa; si no, la recalcula
