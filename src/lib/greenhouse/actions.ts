@@ -2,7 +2,7 @@
 // Cada función recibe el "draft" (una copia mutable del estado) y lo modifica
 // directamente, igual que el original modificaba el objeto global `S`.
 
-import { addSlot, defaultNutricion, diasEntreFechas, estanqueNombre, fd, fmas, fracTubosStr, hoy, planHoy, remSlot } from './helpers';
+import { addSlot, defaultNutricion, diasEntreFechas, dr, estanqueNombre, fd, fmas, fracTubosStr, hoy, planHoy, proximoDiaHabil, remSlot } from './helpers';
 import type { Bancales, EstadoInvernadero, EstanqueId, Etapa, Lote, NutricionConfig, PeriodicidadPedido } from './types';
 
 export function log(draft: EstadoInvernadero, accion: string, detalle: string, autor?: string) {
@@ -90,6 +90,14 @@ export function editPlanItem(
   p.dp = params.dp;
   p.de = params.de;
   p.da = params.da;
+  // Si el cambio (típicamente de frecuencia) deja la próxima siembra ya
+  // vencida —calculada con la última siembra real bajo el ritmo ANTERIOR—
+  // no arrastra ese atraso artificial: se reprograma para que la próxima
+  // siembra caiga hoy, como si el nuevo ritmo recién arrancara ahora.
+  const proxima = proximoDiaHabil(p.ultimaSiembra ? fmas(p.ultimaSiembra, p.freq) : hoy());
+  if (dr(proxima) < 0) {
+    p.ultimaSiembra = fmas(hoy(), -p.freq);
+  }
   log(draft, 'Plan editado', `${params.varNom} cada ${params.freq}d`);
 }
 
