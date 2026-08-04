@@ -50,26 +50,41 @@ export function MoverModal() {
   const modoReubicar = lote?.etapa === 'adulto';
   const sig = lote ? SIGUIENTE[lote.etapa] : undefined;
 
+  // Al reubicar un lote adulto se puede elegir cualquier bancal (engorda o
+  // adulto) — son la misma estructura física, solo cambia la capacidad — no
+  // solo otro bancal de adulto. Al avanzar de etapa (plantines/engorda) el
+  // destino sigue acotado al tipo de bancal de la etapa siguiente.
+  const tiposDestino = useMemo((): { tipo: 'eng' | 'adu'; max: number }[] => {
+    if (modoReubicar)
+      return [
+        { tipo: 'eng', max: 9 },
+        { tipo: 'adu', max: 16 },
+      ];
+    return sig === 'engorda' ? [{ tipo: 'eng', max: 9 }] : [{ tipo: 'adu', max: 16 }];
+  }, [modoReubicar, sig]);
+
   const opciones = useMemo(() => {
     if (!lote) return [];
-    const tipo = modoReubicar ? 'adu' : sig === 'engorda' ? 'eng' : 'adu';
-    const maxBanc = modoReubicar ? 16 : sig === 'engorda' ? 9 : 16;
-    return Array.from({ length: maxBanc }, (_, idx) => {
-      const i = idx + 1;
-      const k = `${tipo}_${i}`;
-      if (modoReubicar && k === lote.bancalId) return null;
-      const usP = plantasEnBanc(state.bancales, k);
-      const libP = maxPlantas(k) - usP;
-      const slots = getBanc(state.bancales, k);
-      const detalle = slots.length ? slots.map((s) => `${varLabelPorId(state.vars, s.varId)}×${s.plantas}pl`).join(', ') : 'vacío';
-      return {
-        key: k,
-        label: `${tipo === 'eng' ? 'E' : 'A'}${i} — ${fracTubosStr(libP)} tubos libres (${detalle})`,
-        libP,
-        disabled: libP <= 0,
-      };
-    }).filter((o): o is NonNullable<typeof o> => o !== null);
-  }, [lote, modoReubicar, sig, state.bancales, state.vars]);
+    return tiposDestino
+      .flatMap(({ tipo, max }) =>
+        Array.from({ length: max }, (_, idx) => {
+          const i = idx + 1;
+          const k = `${tipo}_${i}`;
+          if (modoReubicar && k === lote.bancalId) return null;
+          const usP = plantasEnBanc(state.bancales, k);
+          const libP = maxPlantas(k) - usP;
+          const slots = getBanc(state.bancales, k);
+          const detalle = slots.length ? slots.map((s) => `${varLabelPorId(state.vars, s.varId)}×${s.plantas}pl`).join(', ') : 'vacío';
+          return {
+            key: k,
+            label: `${tipo === 'eng' ? 'E' : 'A'}${i} — ${fracTubosStr(libP)} tubos libres (${detalle})`,
+            libP,
+            disabled: libP <= 0,
+          };
+        })
+      )
+      .filter((o): o is NonNullable<typeof o> => o !== null);
+  }, [lote, modoReubicar, tiposDestino, state.bancales, state.vars]);
 
   const bancalItems = useMemo(() => Object.fromEntries(opciones.map((o) => [o.key, o.label])), [opciones]);
 
