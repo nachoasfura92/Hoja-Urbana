@@ -12,7 +12,7 @@ import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra, ejecutarMovimiento, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
-import { banderasEnUso, fd, fracTubosStr, getBanc, hoy, maxPlantas, plantasEnBanc, varLabelPorId } from '@/lib/greenhouse/helpers';
+import { banderasEnUso, fd, fracTubosStr, hoy, maxPlantas, plantasEnBanc, varLabelPorId } from '@/lib/greenhouse/helpers';
 import { bancalLabel, type TareaHoy } from '@/lib/greenhouse/tareas';
 
 export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose: () => void }) {
@@ -51,16 +51,14 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
       const k = `${tipoBancal}_${i}`;
       const usP = plantasEnBanc(state.bancales, k);
       const libP = maxPlantas(k) - usP;
-      const slots = getBanc(state.bancales, k);
-      const detalle = slots.length ? slots.map((s) => `${varLabelPorId(state.vars, s.varId)}×${s.plantas}pl`).join(', ') : 'vacío';
       return {
         key: k,
-        label: `${tipoBancal === 'eng' ? 'E' : 'A'}${i} — ${fracTubosStr(libP)} tubos libres (${detalle})`,
+        label: `${tipoBancal === 'eng' ? 'E' : 'A'}${i} — ${fracTubosStr(libP)} tubos libres`,
         libP,
         disabled: libP <= 0,
       };
     });
-  }, [tarea, esSiembra, tipoBancal, maxBanc, state.bancales, state.vars]);
+  }, [tarea, esSiembra, tipoBancal, maxBanc, state.bancales]);
 
   const bancalItems = useMemo(() => Object.fromEntries(opciones.map((o) => [o.key, o.label])), [opciones]);
 
