@@ -42,18 +42,18 @@ export function PlanPage() {
   const { state, update } = useGreenhouse();
   const [vId, setVId] = useState('');
   const [freq, setFreq] = useState('7');
-  const [plantas, setPlantas] = useState(20);
-  const [dp, setDp] = useState(14);
-  const [de, setDe] = useState(21);
-  const [da, setDa] = useState(21);
+  const [plantas, setPlantas] = useState<number | ''>(20);
+  const [dp, setDp] = useState<number | ''>(14);
+  const [de, setDe] = useState<number | ''>(21);
+  const [da, setDa] = useState<number | ''>(21);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [evId, setEvId] = useState('');
   const [efreq, setEfreq] = useState('7');
-  const [eplantas, setEplantas] = useState(20);
-  const [edp, setEdp] = useState(14);
-  const [ede, setEde] = useState(21);
-  const [eda, setEda] = useState(21);
+  const [eplantas, setEplantas] = useState<number | ''>(20);
+  const [edp, setEdp] = useState<number | ''>(14);
+  const [ede, setEde] = useState<number | ''>(21);
+  const [eda, setEda] = useState<number | ''>(21);
 
   const variedadItems = useMemo(
     () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])),
@@ -178,26 +178,26 @@ export function PlanPage() {
 
           <div className="grid gap-1.5">
             <Label>Plantas a sembrar</Label>
-            <Input type="number" min={1} value={plantas} onChange={(e) => setPlantas(parseInt(e.target.value, 10) || 0)} />
+            <Input type="number" min={1} value={plantas} onChange={(e) => setPlantas(e.target.value ? parseInt(e.target.value, 10) : '')} />
           </div>
-          {demandaFormExacta && plantas < demandaFormExacta.plantas && (
+          {demandaFormExacta && (plantas || 0) < demandaFormExacta.plantas && (
             <AlertRow kind="warning" icon={AlertTriangle}>
               Los clientes piden <strong>{demandaFormExacta.plantas}</strong> plantas con esta frecuencia — este plan
-              quedaría {demandaFormExacta.plantas - plantas} por debajo.
+              quedaría {demandaFormExacta.plantas - (plantas || 0)} por debajo.
             </AlertRow>
           )}
           <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1.5">
               <Label>Días plantines</Label>
-              <Input type="number" min={1} value={dp} onChange={(e) => setDp(parseInt(e.target.value, 10) || 1)} />
+              <Input type="number" min={1} value={dp} onChange={(e) => setDp(e.target.value ? parseInt(e.target.value, 10) : '')} />
             </div>
             <div className="grid gap-1.5">
               <Label>Días engorda</Label>
-              <Input type="number" min={1} value={de} onChange={(e) => setDe(parseInt(e.target.value, 10) || 1)} />
+              <Input type="number" min={1} value={de} onChange={(e) => setDe(e.target.value ? parseInt(e.target.value, 10) : '')} />
             </div>
             <div className="grid gap-1.5">
               <Label>Días adulto</Label>
-              <Input type="number" min={1} value={da} onChange={(e) => setDa(parseInt(e.target.value, 10) || 1)} />
+              <Input type="number" min={1} value={da} onChange={(e) => setDa(e.target.value ? parseInt(e.target.value, 10) : '')} />
             </div>
           </div>
           <div className="flex justify-end">
@@ -267,27 +267,42 @@ export function PlanPage() {
                         type="number"
                         min={1}
                         value={eplantas}
-                        onChange={(e) => setEplantas(parseInt(e.target.value, 10) || 0)}
+                        onChange={(e) => setEplantas(e.target.value ? parseInt(e.target.value, 10) : '')}
                       />
                     </div>
-                    {demandaEditExacta && eplantas < demandaEditExacta.plantas && (
+                    {demandaEditExacta && (eplantas || 0) < demandaEditExacta.plantas && (
                       <AlertRow kind="warning" icon={AlertTriangle}>
                         Los clientes piden <strong>{demandaEditExacta.plantas}</strong> plantas con esta frecuencia — este
-                        plan quedaría {demandaEditExacta.plantas - eplantas} por debajo.
+                        plan quedaría {demandaEditExacta.plantas - (eplantas || 0)} por debajo.
                       </AlertRow>
                     )}
                     <div className="grid grid-cols-3 gap-3">
                       <div className="grid gap-1.5">
                         <Label>Días plantines</Label>
-                        <Input type="number" min={1} value={edp} onChange={(e) => setEdp(parseInt(e.target.value, 10) || 1)} />
+                        <Input
+                          type="number"
+                          min={1}
+                          value={edp}
+                          onChange={(e) => setEdp(e.target.value ? parseInt(e.target.value, 10) : '')}
+                        />
                       </div>
                       <div className="grid gap-1.5">
                         <Label>Días engorda</Label>
-                        <Input type="number" min={1} value={ede} onChange={(e) => setEde(parseInt(e.target.value, 10) || 1)} />
+                        <Input
+                          type="number"
+                          min={1}
+                          value={ede}
+                          onChange={(e) => setEde(e.target.value ? parseInt(e.target.value, 10) : '')}
+                        />
                       </div>
                       <div className="grid gap-1.5">
                         <Label>Días adulto</Label>
-                        <Input type="number" min={1} value={eda} onChange={(e) => setEda(parseInt(e.target.value, 10) || 1)} />
+                        <Input
+                          type="number"
+                          min={1}
+                          value={eda}
+                          onChange={(e) => setEda(e.target.value ? parseInt(e.target.value, 10) : '')}
+                        />
                       </div>
                     </div>
                     <div className="flex justify-end gap-1.5">

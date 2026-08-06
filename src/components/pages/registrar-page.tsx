@@ -166,15 +166,15 @@ export function RegistrarPage() {
           <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1.5">
               <Label>Días plantines</Label>
-              <Input type="number" min={1} value={dp} onChange={(e) => setDp(parseInt(e.target.value, 10) || 1)} />
+              <Input type="number" min={1} value={dp || ''} onChange={(e) => setDp(parseInt(e.target.value, 10) || 1)} />
             </div>
             <div className="grid gap-1.5">
               <Label>Días engorda</Label>
-              <Input type="number" min={1} value={de} onChange={(e) => setDe(parseInt(e.target.value, 10) || 1)} />
+              <Input type="number" min={1} value={de || ''} onChange={(e) => setDe(parseInt(e.target.value, 10) || 1)} />
             </div>
             <div className="grid gap-1.5">
               <Label>Días adulto</Label>
-              <Input type="number" min={1} value={da} onChange={(e) => setDa(parseInt(e.target.value, 10) || 1)} />
+              <Input type="number" min={1} value={da || ''} onChange={(e) => setDa(parseInt(e.target.value, 10) || 1)} />
             </div>
           </div>
           <div className="grid gap-1.5">

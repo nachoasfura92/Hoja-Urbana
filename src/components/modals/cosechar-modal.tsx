@@ -18,7 +18,7 @@ export function CosecharModal() {
   const { displayName, email } = useCurrentUser();
   const lote = cosecharId != null ? state.lotes.find((l) => l.id === cosecharId) : null;
 
-  const [plantas, setPlantas] = useState(0);
+  const [plantas, setPlantas] = useState<number | ''>(0);
   const [fecha, setFecha] = useState(hoy());
   const [nota, setNota] = useState('');
 
@@ -41,7 +41,7 @@ export function CosecharModal() {
     update((draft) =>
       cosechar(draft, {
         loteId: lote!.id,
-        plantas,
+        plantas: plantas || 0,
         fecha: fecha || hoy(),
         nota,
         autor: displayName || email || undefined,
@@ -67,9 +67,9 @@ export function CosecharModal() {
               min={1}
               max={lote.plantasRestantes}
               value={plantas}
-              onChange={(e) => setPlantas(parseInt(e.target.value, 10) || 0)}
+              onChange={(e) => setPlantas(e.target.value ? parseInt(e.target.value, 10) : '')}
             />
-            <p className="text-xs text-muted-foreground">= {fracTubosStr(plantas)} tubos</p>
+            <p className="text-xs text-muted-foreground">= {fracTubosStr(plantas || 0)} tubos</p>
           </div>
           <div className="grid gap-1.5">
             <Label>Fecha cosecha</Label>

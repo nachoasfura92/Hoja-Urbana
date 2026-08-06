@@ -82,7 +82,7 @@ export function NutricionPage() {
               <Input
                 type="number"
                 step="0.1"
-                value={config.phMin}
+                value={config.phMin || ''}
                 onChange={(e) => setConfig((c) => ({ ...c, phMin: parseFloat(e.target.value) || 0 }))}
               />
             </div>
@@ -91,7 +91,7 @@ export function NutricionPage() {
               <Input
                 type="number"
                 step="0.1"
-                value={config.phMax}
+                value={config.phMax || ''}
                 onChange={(e) => setConfig((c) => ({ ...c, phMax: parseFloat(e.target.value) || 0 }))}
               />
             </div>
@@ -100,7 +100,7 @@ export function NutricionPage() {
               <Input
                 type="number"
                 step="0.1"
-                value={config.ecVerano}
+                value={config.ecVerano || ''}
                 onChange={(e) => setConfig((c) => ({ ...c, ecVerano: parseFloat(e.target.value) || 0 }))}
               />
             </div>
@@ -109,7 +109,7 @@ export function NutricionPage() {
               <Input
                 type="number"
                 step="0.1"
-                value={config.ecInvierno}
+                value={config.ecInvierno || ''}
                 onChange={(e) => setConfig((c) => ({ ...c, ecInvierno: parseFloat(e.target.value) || 0 }))}
               />
             </div>
@@ -125,7 +125,7 @@ export function NutricionPage() {
               <Input
                 type="number"
                 step="0.01"
-                value={config.dosisAPorLitro}
+                value={config.dosisAPorLitro || ''}
                 onChange={(e) => setConfig((c) => ({ ...c, dosisAPorLitro: parseFloat(e.target.value) || 0 }))}
               />
             </div>
@@ -134,7 +134,7 @@ export function NutricionPage() {
               <Input
                 type="number"
                 step="0.01"
-                value={config.dosisBPorLitro}
+                value={config.dosisBPorLitro || ''}
                 onChange={(e) => setConfig((c) => ({ ...c, dosisBPorLitro: parseFloat(e.target.value) || 0 }))}
               />
             </div>
@@ -155,7 +155,7 @@ export function NutricionPage() {
                   <Input
                     type="number"
                     min={1}
-                    value={config.periodicidadPhDias[e.id]}
+                    value={config.periodicidadPhDias[e.id] || ''}
                     onChange={(ev) =>
                       setConfig((c) => ({
                         ...c,
@@ -169,7 +169,7 @@ export function NutricionPage() {
                   <Input
                     type="number"
                     min={1}
-                    value={config.periodicidadEcDias[e.id]}
+                    value={config.periodicidadEcDias[e.id] || ''}
                     onChange={(ev) =>
                       setConfig((c) => ({
                         ...c,
@@ -183,7 +183,7 @@ export function NutricionPage() {
                   <Input
                     type="number"
                     min={1}
-                    value={config.periodicidadRecambioDias[e.id]}
+                    value={config.periodicidadRecambioDias[e.id] || ''}
                     onChange={(ev) =>
                       setConfig((c) => ({
                         ...c,

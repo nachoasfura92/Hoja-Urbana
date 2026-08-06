@@ -27,7 +27,7 @@ export function MoverModal() {
 
   const [fecha, setFecha] = useState(hoy());
   const [bancKey, setBancKey] = useState('');
-  const [plantas, setPlantas] = useState(0);
+  const [plantas, setPlantas] = useState<number | ''>(0);
   const [nota, setNota] = useState('');
   const [errorBancal, setErrorBancal] = useState(false);
   const [pending, setPending] = useState<EjecutarMovimientoParams | null>(null);
@@ -94,7 +94,7 @@ export function MoverModal() {
   const obligatorio = modoReubicar || lote.etapa === 'plantines';
 
   const libreSeleccionado = bancKey ? opciones.find((o) => o.key === bancKey)?.libP ?? null : null;
-  const excedeCapacidad = bancKey && libreSeleccionado !== null && plantas > libreSeleccionado;
+  const excedeCapacidad = bancKey && libreSeleccionado !== null && (plantas || 0) > libreSeleccionado;
 
   function handleConfirmar() {
     if (obligatorio && !bancKey) {
@@ -204,9 +204,9 @@ export function MoverModal() {
                 min={1}
                 max={lote.plantasRestantes}
                 value={plantas}
-                onChange={(e) => setPlantas(parseInt(e.target.value, 10) || 0)}
+                onChange={(e) => setPlantas(e.target.value ? parseInt(e.target.value, 10) : '')}
               />
-              <p className="text-xs text-muted-foreground">{fracTubosStr(plantas)} tubos equivalentes</p>
+              <p className="text-xs text-muted-foreground">{fracTubosStr(plantas || 0)} tubos equivalentes</p>
             </div>
             {excedeCapacidad && (
               <AlertRow kind="danger" icon={AlertTriangle}>

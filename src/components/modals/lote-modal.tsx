@@ -15,7 +15,7 @@ import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { agregarPlantasAjuste, editarBandera, editarPauta, eliminarPlantas } from '@/lib/greenhouse/actions';
-import { banderasEnUso, dd, fd, fracTubosStr, serieNutricionLote, varLabelPorId } from '@/lib/greenhouse/helpers';
+import { banderasEnUso, dd, fd, fracTubosStr, serieNutricionLote, ubicacionLote, varLabelPorId } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
 const SIGUIENTE: Partial<Record<Etapa, Etapa>> = {
@@ -40,12 +40,12 @@ export function LoteModal() {
   );
 
   const [eliminarOpen, setEliminarOpen] = useState(false);
-  const [plantasEliminar, setPlantasEliminar] = useState(0);
+  const [plantasEliminar, setPlantasEliminar] = useState<number | ''>(0);
   const [esMerma, setEsMerma] = useState(false);
   const [motivo, setMotivo] = useState('');
 
   const [agregarOpen, setAgregarOpen] = useState(false);
-  const [plantasAgregar, setPlantasAgregar] = useState(0);
+  const [plantasAgregar, setPlantasAgregar] = useState<number | ''>(0);
   const [notaAgregar, setNotaAgregar] = useState('');
 
   const [editandoPauta, setEditandoPauta] = useState(false);
@@ -54,7 +54,7 @@ export function LoteModal() {
   const [daEdit, setDaEdit] = useState(0);
 
   const [editandoBandera, setEditandoBandera] = useState(false);
-  const [banderaEdit, setBanderaEdit] = useState(0);
+  const [banderaEdit, setBanderaEdit] = useState<number | ''>(0);
 
   // Cierra los sub-formularios (eliminar, agregar, editar pauta/bandera) al
   // cambiar de lote (patrón "ajustar estado durante el render" en vez de un
@@ -80,7 +80,11 @@ export function LoteModal() {
   const dObj = lote.etapa === 'plantines' ? lote.dp : lote.etapa === 'engorda' ? lote.de : lote.da;
   const pct = Math.min(100, Math.round((dias / dObj) * 100));
   const sig = SIGUIENTE[lote.etapa];
-  const banderaDuplicada = banderaEdit > 0 && banderaEdit !== lote.bandera && banderasEnUso(state.lotes).has(banderaEdit);
+  const banderaDuplicada =
+    typeof banderaEdit === 'number' &&
+    banderaEdit > 0 &&
+    banderaEdit !== lote.bandera &&
+    banderasEnUso(state.lotes).has(banderaEdit);
 
   function abrirEditarPauta() {
     setDpEdit(lote!.dp);
@@ -103,7 +107,7 @@ export function LoteModal() {
 
   function confirmarEliminar() {
     update((draft) =>
-      eliminarPlantas(draft, { loteId: lote!.id, plantas: plantasEliminar, esMerma, nota: motivo.trim() })
+      eliminarPlantas(draft, { loteId: lote!.id, plantas: plantasEliminar || 0, esMerma, nota: motivo.trim() })
     );
     setEliminarOpen(false);
     closeLote();
@@ -116,7 +120,7 @@ export function LoteModal() {
   }
 
   function guardarBandera() {
-    update((draft) => editarBandera(draft, { loteId: lote!.id, bandera: banderaEdit, autor }));
+    update((draft) => editarBandera(draft, { loteId: lote!.id, bandera: banderaEdit || 0, autor }));
     setEditandoBandera(false);
   }
 
@@ -128,7 +132,7 @@ export function LoteModal() {
 
   function confirmarAgregar() {
     update((draft) =>
-      agregarPlantasAjuste(draft, { loteId: lote!.id, plantas: plantasAgregar, nota: notaAgregar.trim(), autor })
+      agregarPlantasAjuste(draft, { loteId: lote!.id, plantas: plantasAgregar || 0, nota: notaAgregar.trim(), autor })
     );
     setAgregarOpen(false);
   }
@@ -165,8 +169,7 @@ export function LoteModal() {
           </div>
 
           <div className="text-xs text-muted-foreground">
-            Cosecha est: {fd(lote.fechaVenta)}
-            {lote.bancalId ? ` · Bancal: ${lote.bancalId}` : ''}
+            Cosecha est: {fd(lote.fechaVenta)} · Ubicación: {ubicacionLote(lote)}
           </div>
 
           <div className="rounded-md border px-3 py-2">
@@ -216,7 +219,7 @@ export function LoteModal() {
                   type="number"
                   min={0}
                   value={banderaEdit}
-                  onChange={(e) => setBanderaEdit(parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) => setBanderaEdit(e.target.value ? parseInt(e.target.value, 10) : '')}
                 />
                 {banderaDuplicada && (
                   <p className="text-xs text-warning">
@@ -334,9 +337,9 @@ export function LoteModal() {
                 type="number"
                 min={1}
                 value={plantasAgregar}
-                onChange={(e) => setPlantasAgregar(parseInt(e.target.value, 10) || 0)}
+                onChange={(e) => setPlantasAgregar(e.target.value ? parseInt(e.target.value, 10) : '')}
               />
-              <p className="text-xs text-muted-foreground">{fracTubosStr(plantasAgregar)} tubos equivalentes</p>
+              <p className="text-xs text-muted-foreground">{fracTubosStr(plantasAgregar || 0)} tubos equivalentes</p>
             </div>
             <div className="grid gap-1.5">
               <Label>Motivo (opcional)</Label>
@@ -372,9 +375,9 @@ export function LoteModal() {
                 min={1}
                 max={lote.plantasRestantes}
                 value={plantasEliminar}
-                onChange={(e) => setPlantasEliminar(parseInt(e.target.value, 10) || 0)}
+                onChange={(e) => setPlantasEliminar(e.target.value ? parseInt(e.target.value, 10) : '')}
               />
-              <p className="text-xs text-muted-foreground">{fracTubosStr(plantasEliminar)} tubos equivalentes</p>
+              <p className="text-xs text-muted-foreground">{fracTubosStr(plantasEliminar || 0)} tubos equivalentes</p>
             </div>
             <div className="flex items-center justify-between rounded-md border px-3 py-2">
               <div>

@@ -21,8 +21,8 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
   const autor = displayName || email || undefined;
 
   const [fecha, setFecha] = useState(hoy());
-  const [cantidad, setCantidad] = useState(0);
-  const [bandera, setBandera] = useState(0);
+  const [cantidad, setCantidad] = useState<number | ''>(0);
+  const [bandera, setBandera] = useState<number | ''>(0);
   const [bancKey, setBancKey] = useState('');
   const [pending, setPending] = useState<EjecutarMovimientoParams | null>(null);
   const [resumen, setResumen] = useState<ResumenRegistro | null>(null);
@@ -68,7 +68,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
 
   const loteActual = tarea.loteId != null ? state.lotes.find((l) => l.id === tarea.loteId) : null;
   const maxCantidad = esSiembra ? undefined : loteActual?.plantasRestantes;
-  const banderaDuplicada = esSiembra && bandera > 0 && banderasEnUso(state.lotes).has(bandera);
+  const banderaDuplicada = esSiembra && typeof bandera === 'number' && bandera > 0 && banderasEnUso(state.lotes).has(bandera);
 
   function handleConfirmar() {
     if (esSiembra) {
@@ -195,9 +195,9 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
                 min={1}
                 max={maxCantidad}
                 value={cantidad}
-                onChange={(e) => setCantidad(parseInt(e.target.value, 10) || 0)}
+                onChange={(e) => setCantidad(e.target.value ? parseInt(e.target.value, 10) : '')}
               />
-              <p className="text-xs text-muted-foreground">{fracTubosStr(cantidad)} tubos equivalentes</p>
+              <p className="text-xs text-muted-foreground">{fracTubosStr(cantidad || 0)} tubos equivalentes</p>
             </div>
             {esSiembra && (
               <div className="grid gap-1.5">
@@ -209,7 +209,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
                   type="number"
                   min={1}
                   value={bandera}
-                  onChange={(e) => setBandera(parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) => setBandera(e.target.value ? parseInt(e.target.value, 10) : '')}
                 />
                 {banderaDuplicada && (
                   <p className="text-xs text-destructive">Esa bandera ya está en uso en mesa de plantines.</p>

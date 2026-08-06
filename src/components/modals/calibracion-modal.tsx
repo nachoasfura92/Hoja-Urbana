@@ -38,7 +38,7 @@ export function CalibracionModal({ target, onClose }: { target: CalibracionTarge
   const config = state.nutricion?.config ?? defaultNutricionConfig();
 
   const [fecha, setFecha] = useState(hoy());
-  const [litros, setLitros] = useState(0);
+  const [litros, setLitros] = useState<number | ''>(0);
   const [mlAcido, setMlAcido] = useState('');
   const [gramosA, setGramosA] = useState('');
   const [gramosB, setGramosB] = useState('');
@@ -69,12 +69,12 @@ export function CalibracionModal({ target, onClose }: { target: CalibracionTarge
   const mlAcidoNum = mlAcido ? parseFloat(mlAcido) : null;
   const gramosANum = gramosA ? parseFloat(gramosA) : null;
   const gramosBNum = gramosB ? parseFloat(gramosB) : null;
-  const mlSugerido = mlAcidoNum != null ? Math.round(mlAcidoNum * litros * 100) / 100 : null;
-  const gramosASugerido = gramosANum != null ? Math.round(gramosANum * litros * 100) / 100 : null;
-  const gramosBSugerido = gramosBNum != null ? Math.round(gramosBNum * litros * 100) / 100 : null;
+  const mlSugerido = mlAcidoNum != null ? Math.round(mlAcidoNum * (litros || 0) * 100) / 100 : null;
+  const gramosASugerido = gramosANum != null ? Math.round(gramosANum * (litros || 0) * 100) / 100 : null;
+  const gramosBSugerido = gramosBNum != null ? Math.round(gramosBNum * (litros || 0) * 100) / 100 : null;
 
   const ecObjetivo = ecObjetivoActual(config, fecha);
-  const puedeRegistrar = litros > 0 && valorFinal !== '';
+  const puedeRegistrar = (litros || 0) > 0 && valorFinal !== '';
 
   function handleRegistrar() {
     if (!puedeRegistrar || !target) return;
@@ -84,7 +84,7 @@ export function CalibracionModal({ target, onClose }: { target: CalibracionTarge
           estanqueId: target.estanqueId,
           fecha,
           ph: parseFloat(valorFinal),
-          litros,
+          litros: litros || 0,
           mlAcidoPor1L: mlAcidoNum ?? undefined,
           autor,
         })
@@ -95,7 +95,7 @@ export function CalibracionModal({ target, onClose }: { target: CalibracionTarge
           estanqueId: target.estanqueId,
           fecha,
           ec: parseFloat(valorFinal),
-          litros,
+          litros: litros || 0,
           gramosAPor1L: gramosANum ?? undefined,
           gramosBPor1L: gramosBNum ?? undefined,
           autor,
@@ -132,7 +132,7 @@ export function CalibracionModal({ target, onClose }: { target: CalibracionTarge
             </div>
             <div className="grid gap-1.5">
               <Label>Litros en el estanque</Label>
-              <Input type="number" min={1} value={litros} onChange={(e) => setLitros(parseFloat(e.target.value) || 0)} />
+              <Input type="number" min={1} value={litros} onChange={(e) => setLitros(e.target.value ? parseFloat(e.target.value) : '')} />
             </div>
           </div>
 

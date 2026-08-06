@@ -18,7 +18,7 @@ export function EditarMedicionModal({ medicion, onClose }: { medicion: MedicionN
   const { update } = useGreenhouse();
 
   const [fecha, setFecha] = useState('');
-  const [litros, setLitros] = useState(0);
+  const [litros, setLitros] = useState<number | ''>(0);
   const [mlAcido, setMlAcido] = useState('');
   const [gramosA, setGramosA] = useState('');
   const [gramosB, setGramosB] = useState('');
@@ -44,7 +44,7 @@ export function EditarMedicionModal({ medicion, onClose }: { medicion: MedicionN
   }
 
   const esPh = medicion.tipo === 'ph';
-  const puedeGuardar = litros > 0 && valorFinal !== '';
+  const puedeGuardar = (litros || 0) > 0 && valorFinal !== '';
 
   function handleGuardar() {
     if (!puedeGuardar || !medicion) return;
@@ -52,7 +52,7 @@ export function EditarMedicionModal({ medicion, onClose }: { medicion: MedicionN
       editarMedicionNutricion(draft, {
         id: medicion.id,
         fecha,
-        litros,
+        litros: litros || 0,
         ph: esPh ? parseFloat(valorFinal) : undefined,
         ec: esPh ? undefined : parseFloat(valorFinal),
         mlAcidoPor1L: mlAcido ? parseFloat(mlAcido) : undefined,
@@ -87,7 +87,7 @@ export function EditarMedicionModal({ medicion, onClose }: { medicion: MedicionN
               </div>
               <div className="grid gap-1.5">
                 <Label>Litros en el estanque</Label>
-                <Input type="number" min={1} value={litros} onChange={(e) => setLitros(parseFloat(e.target.value) || 0)} />
+                <Input type="number" min={1} value={litros} onChange={(e) => setLitros(e.target.value ? parseFloat(e.target.value) : '')} />
               </div>
             </div>
 
