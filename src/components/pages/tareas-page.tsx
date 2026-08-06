@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ClipboardCheck,
   Droplets,
-  Flag,
   Pencil,
   RefreshCw,
   Sprout,
@@ -21,6 +20,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/dashboard/date-picker';
+import { BanderaBadges } from '@/components/dashboard/bandera-badge';
 import { TareaModal } from '@/components/modals/tarea-modal';
 import { CalibracionModal, type CalibracionTarget } from '@/components/modals/calibracion-modal';
 import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals/resumen-registro-dialog';
@@ -36,7 +36,7 @@ import {
   posponerTraspaso,
   registrarRecambioAgua,
 } from '@/lib/greenhouse/actions';
-import { estanqueNombre, fd, fracTubosStr, hoy, varLabelPorId } from '@/lib/greenhouse/helpers';
+import { estanqueNombre, fd, formatBanderas, fracTubosStr, hoy, varLabelPorId } from '@/lib/greenhouse/helpers';
 import { bancalLabel, calcularTareasHoy, type TareaHoy } from '@/lib/greenhouse/tareas';
 import { cn } from '@/lib/utils';
 
@@ -183,7 +183,7 @@ export function TareasPage() {
     setResumen({
       titulo:
         t.tipo === 'traspaso_engorda'
-          ? `Confirmar traspaso a engorda — bandera N°${t.bandera}`
+          ? `Confirmar traspaso a engorda — bandera ${formatBanderas(t.banderas)}`
           : `Confirmar traspaso a adulto — ${varLabelPorId(state.vars, t.varId)}`,
       filas: [
         { label: 'Variedad', value: varLabelPorId(state.vars, t.varId) },
@@ -417,10 +417,7 @@ function TareaCard({
           {t.tipo === 'traspaso_engorda' && (
             <>
               Traspasar lote
-              <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
-                <Flag className="size-3" fill="currentColor" />
-                {t.bandera}
-              </span>
+              <BanderaBadges numeros={t.banderas} />
               ({varLabelTarea}) a engorda
             </>
           )}

@@ -145,7 +145,7 @@ export function confirmarSiembra(draft: EstadoInvernadero, p: ConfirmarSiembraPa
     da: p.da,
     notas: p.notas,
     bancalId: null,
-    bandera: p.bandera,
+    banderas: p.bandera ? [p.bandera] : [],
     fechaVenta: fmas(p.fechaSiembra, p.dp + p.de + p.da),
     movimientos: [
       {
@@ -298,10 +298,10 @@ export function cosechar(
     l.etapa = 'cosechado';
     l.bancalId = null;
     l.plantasRestantes = 0;
-    // Recién acá se libera la bandera (cosecha completa, no queda nada del
-    // lote en pie) — antes de esto la bandera sigue identificando al lote en
-    // cualquier etapa (mesa de plantines, engorda o adulto).
-    l.bandera = 0;
+    // Recién acá se liberan las banderas (cosecha completa, no queda nada del
+    // lote en pie) — antes de esto siguen identificando al lote en cualquier
+    // etapa (mesa de plantines, engorda o adulto).
+    l.banderas = [];
   }
 }
 
@@ -412,25 +412,68 @@ export function agregarPlantasAjuste(draft: EstadoInvernadero, params: AgregarPl
   log(draft, 'Ajuste', `${l.varNom}: ${detalle}`, params.autor);
 }
 
-// Corrige a mano el N° de bandera de un lote (ej. para restaurar la
-// asociación en lotes que la perdieron antes de que la bandera pasara a
-// seguir al lote durante todo su ciclo). No valida duplicados acá: eso lo
+// Un lote puede tener más de una banderita física asociada a la vez (ej.
+// lotes fusionados). Estas tres acciones no validan duplicados acá: eso lo
 // hace la UI contra banderasEnUso, igual que al sembrar.
-export interface EditarBanderaParams {
+
+export interface AgregarBanderaParams {
   loteId: number;
   bandera: number;
+  autor?: string;
+}
+
+export function agregarBandera(draft: EstadoInvernadero, params: AgregarBanderaParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l) return;
+  if (!l.banderas) l.banderas = [];
+  if (l.banderas.includes(params.bandera)) return;
+  l.banderas.push(params.bandera);
+  l.banderas.sort((a, b) => a - b);
+  const detalle = `+ Bandera N°${params.bandera}`;
+  if (!l.movimientos) l.movimientos = [];
+  l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Bandera agregada', detalle, autor: params.autor });
+  log(draft, 'Bandera agregada', `${l.varNom}: ${detalle}`, params.autor);
+}
+
+// Corrige a mano el N° de una bandera ya asociada al lote (ej. para
+// restaurar la asociación en lotes que la perdieron antes de que la bandera
+// pasara a seguir al lote durante todo su ciclo).
+export interface EditarBanderaParams {
+  loteId: number;
+  banderaAnterior: number;
+  banderaNueva: number;
   autor?: string;
 }
 
 export function editarBandera(draft: EstadoInvernadero, params: EditarBanderaParams) {
   const l = draft.lotes.find((x) => x.id === params.loteId);
   if (!l) return;
-  const antes = l.bandera;
-  l.bandera = params.bandera;
-  const detalle = `Bandera N°${antes || '(ninguna)'} → N°${params.bandera}`;
+  if (!l.banderas) l.banderas = [];
+  const idx = l.banderas.indexOf(params.banderaAnterior);
+  if (idx === -1) return;
+  l.banderas[idx] = params.banderaNueva;
+  l.banderas.sort((a, b) => a - b);
+  const detalle = `Bandera N°${params.banderaAnterior} → N°${params.banderaNueva}`;
   if (!l.movimientos) l.movimientos = [];
   l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Bandera editada', detalle, autor: params.autor });
   log(draft, 'Bandera editada', `${l.varNom}: ${detalle}`, params.autor);
+}
+
+export interface EliminarBanderaParams {
+  loteId: number;
+  bandera: number;
+  autor?: string;
+}
+
+export function eliminarBandera(draft: EstadoInvernadero, params: EliminarBanderaParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l || !l.banderas) return;
+  if (!l.banderas.includes(params.bandera)) return;
+  l.banderas = l.banderas.filter((b) => b !== params.bandera);
+  const detalle = `- Bandera N°${params.bandera}`;
+  if (!l.movimientos) l.movimientos = [];
+  l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Bandera eliminada', detalle, autor: params.autor });
+  log(draft, 'Bandera eliminada', `${l.varNom}: ${detalle}`, params.autor);
 }
 
 // Ajusta la pauta (días objetivo por etapa) de un lote puntual, sin afectar

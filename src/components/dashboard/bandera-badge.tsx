@@ -22,3 +22,16 @@ export function BanderaBadge({ numero, className }: { numero: number; className?
     </span>
   );
 }
+
+// Un lote puede tener más de una banderita física asociada — muestra una
+// insignia por cada una (o nada si la lista está vacía).
+export function BanderaBadges({ numeros, className }: { numeros: number[] | undefined; className?: string }) {
+  if (!numeros || !numeros.length) return null;
+  return (
+    <>
+      {numeros.map((n) => (
+        <BanderaBadge key={n} numero={n} className={className} />
+      ))}
+    </>
+  );
+}

@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MiniProgress } from '@/components/dashboard/mini-progress';
-import { BanderaBadge } from '@/components/dashboard/bandera-badge';
+import { BanderaBadges } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { limpiarBancal } from '@/lib/greenhouse/actions';
@@ -102,7 +102,7 @@ export function BancalModal() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-sm font-medium">
                       {varLabelPorId(state.vars, l.varId)}
-                      <BanderaBadge numero={l.bandera} />
+                      <BanderaBadges numeros={l.banderas} />
                     </div>
                     <div className="flex gap-1">
                       {tipo === 'adu' && (

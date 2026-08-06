@@ -5,7 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MiniProgress } from '@/components/dashboard/mini-progress';
-import { BanderaBadge } from '@/components/dashboard/bandera-badge';
+import { BanderaBadges } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { dd, fd, fracTubosStr, gv, gvColor, ubicacionLote, varLabel } from '@/lib/greenhouse/helpers';
@@ -90,7 +90,7 @@ export function MesaPage() {
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
                         <span className="flex items-center gap-1.5 text-sm font-medium">
                           {varLabel(v)}
-                          <BanderaBadge numero={l.bandera} />
+                          <BanderaBadges numeros={l.banderas} />
                         </span>
                         <div className="flex items-center gap-1.5">
                           <Badge variant="outline" className="border-transparent bg-accent text-accent-foreground">

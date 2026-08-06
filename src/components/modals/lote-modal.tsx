@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { LineChart as LineChartIcon, Minus, Pencil, Plus } from 'lucide-react';
+import { LineChart as LineChartIcon, Minus, Pencil, Plus, X } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,11 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { MiniProgress } from '@/components/dashboard/mini-progress';
-import { BanderaBadge } from '@/components/dashboard/bandera-badge';
+import { BanderaBadge, BanderaBadges } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
-import { agregarPlantasAjuste, editarBandera, editarPauta, eliminarPlantas } from '@/lib/greenhouse/actions';
+import { agregarBandera, agregarPlantasAjuste, editarBandera, editarPauta, eliminarBandera, eliminarPlantas } from '@/lib/greenhouse/actions';
 import { banderasEnUso, dd, fd, fracTubosStr, serieNutricionLote, ubicacionLote, varLabelPorId } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
@@ -53,8 +53,10 @@ export function LoteModal() {
   const [deEdit, setDeEdit] = useState(0);
   const [daEdit, setDaEdit] = useState(0);
 
-  const [editandoBandera, setEditandoBandera] = useState(false);
-  const [banderaEdit, setBanderaEdit] = useState<number | ''>(0);
+  const [agregandoBandera, setAgregandoBandera] = useState(false);
+  const [banderaNueva, setBanderaNueva] = useState<number | ''>('');
+  const [editandoBanderaOriginal, setEditandoBanderaOriginal] = useState<number | null>(null);
+  const [banderaEditNueva, setBanderaEditNueva] = useState<number | ''>('');
 
   // Cierra los sub-formularios (eliminar, agregar, editar pauta/bandera) al
   // cambiar de lote (patrón "ajustar estado durante el render" en vez de un
@@ -65,7 +67,8 @@ export function LoteModal() {
     setEditandoPauta(false);
     setEliminarOpen(false);
     setAgregarOpen(false);
-    setEditandoBandera(false);
+    setAgregandoBandera(false);
+    setEditandoBanderaOriginal(null);
   }
 
   if (!lote) {
@@ -80,11 +83,14 @@ export function LoteModal() {
   const dObj = lote.etapa === 'plantines' ? lote.dp : lote.etapa === 'engorda' ? lote.de : lote.da;
   const pct = Math.min(100, Math.round((dias / dObj) * 100));
   const sig = SIGUIENTE[lote.etapa];
-  const banderaDuplicada =
-    typeof banderaEdit === 'number' &&
-    banderaEdit > 0 &&
-    banderaEdit !== lote.bandera &&
-    banderasEnUso(state.lotes).has(banderaEdit);
+  const misBanderas = new Set(lote.banderas || []);
+  const banderasDeOtros = new Set([...banderasEnUso(state.lotes)].filter((b) => !misBanderas.has(b)));
+  const agregarDuplicada =
+    banderaNueva !== '' && (misBanderas.has(banderaNueva) || banderasDeOtros.has(banderaNueva));
+  const editarDuplicada =
+    banderaEditNueva !== '' &&
+    banderaEditNueva !== editandoBanderaOriginal &&
+    (misBanderas.has(banderaEditNueva) || banderasDeOtros.has(banderaEditNueva));
 
   function abrirEditarPauta() {
     setDpEdit(lote!.dp);
@@ -114,14 +120,38 @@ export function LoteModal() {
     closeBancal();
   }
 
-  function abrirEditarBandera() {
-    setBanderaEdit(lote!.bandera || 0);
-    setEditandoBandera(true);
+  function abrirAgregarBandera() {
+    setBanderaNueva('');
+    setAgregandoBandera(true);
   }
 
-  function guardarBandera() {
-    update((draft) => editarBandera(draft, { loteId: lote!.id, bandera: banderaEdit || 0, autor }));
-    setEditandoBandera(false);
+  function confirmarAgregarBandera() {
+    if (!banderaNueva || agregarDuplicada) return;
+    update((draft) => agregarBandera(draft, { loteId: lote!.id, bandera: banderaNueva, autor }));
+    setAgregandoBandera(false);
+  }
+
+  function abrirEditarBanderaNum(b: number) {
+    setEditandoBanderaOriginal(b);
+    setBanderaEditNueva(b);
+  }
+
+  function guardarEdicionBanderaNum() {
+    if (!banderaEditNueva || editandoBanderaOriginal == null || editarDuplicada) return;
+    update((draft) =>
+      editarBandera(draft, {
+        loteId: lote!.id,
+        banderaAnterior: editandoBanderaOriginal!,
+        banderaNueva: banderaEditNueva,
+        autor,
+      })
+    );
+    setEditandoBanderaOriginal(null);
+  }
+
+  function quitarBandera(b: number) {
+    if (!confirm(`¿Quitar la bandera N°${b} de este lote?`)) return;
+    update((draft) => eliminarBandera(draft, { loteId: lote!.id, bandera: b, autor }));
   }
 
   function abrirAgregar() {
@@ -152,7 +182,7 @@ export function LoteModal() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {varLabelPorId(state.vars, lote.varId)} — {lote.etapa}
-              <BanderaBadge numero={lote.bandera} />
+              <BanderaBadges numeros={lote.banderas} />
             </DialogTitle>
           </DialogHeader>
 
@@ -205,39 +235,92 @@ export function LoteModal() {
 
           <div className="rounded-md border px-3 py-2">
             <div className="mb-1.5 flex items-center justify-between">
-              <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bandera</h4>
-              {!editandoBandera && (
-                <Button variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-xs" onClick={abrirEditarBandera}>
-                  <Pencil className="size-3" />
-                  Editar bandera
+              <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Banderas</h4>
+              {!agregandoBandera && (
+                <Button variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-xs" onClick={abrirAgregarBandera}>
+                  <Plus className="size-3" />
+                  Agregar
                 </Button>
               )}
             </div>
-            {editandoBandera ? (
+
+            {lote.banderas && lote.banderas.length > 0 ? (
               <div className="grid gap-1.5">
+                {lote.banderas.map((b) =>
+                  editandoBanderaOriginal === b ? (
+                    <div key={b} className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        min={0}
+                        className="h-7"
+                        value={banderaEditNueva}
+                        onChange={(e) => setBanderaEditNueva(e.target.value ? parseInt(e.target.value, 10) : '')}
+                      />
+                      <Button size="sm" className="h-7 px-2 text-xs" onClick={guardarEdicionBanderaNum}>
+                        Guardar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setEditandoBanderaOriginal(null)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div key={b} className="flex items-center justify-between">
+                      <BanderaBadge numero={b} />
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="size-6"
+                          onClick={() => abrirEditarBanderaNum(b)}
+                        >
+                          <Pencil className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="size-6 text-destructive hover:text-destructive"
+                          onClick={() => quitarBandera(b)}
+                        >
+                          <X className="size-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                )}
+                {editandoBanderaOriginal !== null && editarDuplicada && (
+                  <p className="text-xs text-warning">Esa bandera ya está en uso por otro lote activo.</p>
+                )}
+              </div>
+            ) : (
+              !agregandoBandera && <div className="text-sm text-muted-foreground">Sin banderas asociadas</div>
+            )}
+
+            {agregandoBandera && (
+              <div className="mt-1.5 grid gap-1.5">
                 <Input
                   type="number"
                   min={0}
-                  value={banderaEdit}
-                  onChange={(e) => setBanderaEdit(e.target.value ? parseInt(e.target.value, 10) : '')}
+                  placeholder="N° de bandera"
+                  value={banderaNueva}
+                  onChange={(e) => setBanderaNueva(e.target.value ? parseInt(e.target.value, 10) : '')}
+                  autoFocus
                 />
-                {banderaDuplicada && (
-                  <p className="text-xs text-warning">
-                    Esa bandera ya está en uso por otro lote activo. Verifica antes de guardar.
-                  </p>
+                {agregarDuplicada && (
+                  <p className="text-xs text-warning">Esa bandera ya está en uso por otro lote activo.</p>
                 )}
-                <div className="mt-1 flex justify-end gap-1.5">
-                  <Button variant="outline" size="sm" onClick={() => setEditandoBandera(false)}>
+                <div className="flex justify-end gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => setAgregandoBandera(false)}>
                     Cancelar
                   </Button>
-                  <Button size="sm" onClick={guardarBandera}>
-                    Guardar
+                  <Button size="sm" onClick={confirmarAgregarBandera} disabled={!banderaNueva || agregarDuplicada}>
+                    Agregar
                   </Button>
                 </div>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                {lote.bandera > 0 ? `N° ${lote.bandera}` : 'Sin bandera asociada'}
               </div>
             )}
           </div>

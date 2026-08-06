@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BanderaBadge } from '@/components/dashboard/bandera-badge';
+import { BanderaBadges } from '@/components/dashboard/bandera-badge';
 import { EtapaBadge } from '@/components/dashboard/etapa-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
@@ -197,7 +197,7 @@ export function SearchLotes() {
                   >
                     <div>
                       <div className="flex items-center gap-1.5 text-sm font-medium">
-                        <BanderaBadge numero={l.bandera} />
+                        <BanderaBadges numeros={l.banderas} />
                         {varLabelPorId(state.vars, l.varId)}
                         <EtapaBadge etapa={l.etapa} />
                       </div>

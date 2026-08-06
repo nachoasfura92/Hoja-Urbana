@@ -37,7 +37,7 @@ export interface TareaHoy {
   banderaSugerida?: number;
   // traspasos
   loteId?: number;
-  bandera?: number;
+  banderas?: number[];
   bancalOrigen?: string | null;
   bancalSugerido?: string | null;
   etapaDestino?: Etapa;
@@ -101,7 +101,7 @@ export function calcularTareasHoy(state: EstadoInvernadero): TareaHoy[] {
         varNom: l.varNom,
         cantidadSugerida: l.plantasRestantes,
         loteId: l.id,
-        bandera: l.bandera,
+        banderas: l.banderas,
         bancalOrigen: l.bancalId,
         bancalSugerido: primerBancalConEspacio(state.bancales, 'eng', l.plantasRestantes),
         etapaDestino: 'engorda',
@@ -123,7 +123,7 @@ export function calcularTareasHoy(state: EstadoInvernadero): TareaHoy[] {
         varNom: l.varNom,
         cantidadSugerida: l.plantasRestantes,
         loteId: l.id,
-        bandera: l.bandera,
+        banderas: l.banderas,
         bancalOrigen: l.bancalId,
         bancalSugerido: primerBancalConEspacio(state.bancales, 'adu', l.plantasRestantes),
         etapaDestino: 'adulto',

@@ -343,10 +343,14 @@ export type OrdenLotes = 'cosecha' | 'crecimiento_desc' | 'crecimiento_asc' | 'v
 // no está físicamente en el invernadero (su bandera ya se liberó y puede
 // haberse reciclado en otra siembra). Mientras esté activo (en mesa de
 // plantines, engorda o adulto) se puede encontrar por su bandera.
+function minBandera(l: Lote): number {
+  return l.banderas && l.banderas.length ? Math.min(...l.banderas) : Infinity;
+}
+
 export function buscarLotes(lotes: Lote[], filtros: FiltrosLotes, orden: OrdenLotes = 'cosecha'): Lote[] {
   const resultado = (lotes || [])
     .filter((l) => l.etapa !== 'cosechado')
-    .filter((l) => !filtros.bandera || l.bandera === filtros.bandera)
+    .filter((l) => !filtros.bandera || (l.banderas || []).includes(filtros.bandera))
     .filter((l) => !filtros.varIds?.length || filtros.varIds.includes(l.varId))
     .filter((l) => !filtros.etapas?.length || filtros.etapas.includes(l.etapa))
     .filter((l) => filtros.diasCrecimientoMin == null || dd(l.fechaEtapa) >= filtros.diasCrecimientoMin)
@@ -360,10 +364,16 @@ export function buscarLotes(lotes: Lote[], filtros: FiltrosLotes, orden: OrdenLo
     case 'variedad':
       return resultado.sort((a, b) => a.varNom.localeCompare(b.varNom));
     case 'bandera':
-      return resultado.sort((a, b) => a.bandera - b.bandera);
+      return resultado.sort((a, b) => minBandera(a) - minBandera(b));
     default:
       return resultado.sort((a, b) => dr(a.fechaVenta) - dr(b.fechaVenta));
   }
+}
+
+// Texto legible para una o varias banderas de un lote (usado donde antes se
+// mostraba un solo N° de bandera en una tarjeta o título).
+export function formatBanderas(banderas: number[] | undefined): string {
+  return banderas && banderas.length ? banderas.map((b) => `N°${b}`).join(', ') : 'sin bandera';
 }
 
 // Dónde está físicamente un lote ahora mismo: en mesa de plantines (no usa
@@ -381,7 +391,12 @@ export function ubicacionLote(l: Lote): string {
 // cosecha por completo (ver cosechar()), para reciclarse en siembras futuras
 // y mantener un inventario mínimo de banderitas físicas.
 export function banderasEnUso(lotes: Lote[]): Set<number> {
-  return new Set((lotes || []).filter((l) => l.etapa !== 'cosechado' && l.bandera > 0).map((l) => l.bandera));
+  const set = new Set<number>();
+  (lotes || []).forEach((l) => {
+    if (l.etapa === 'cosechado') return;
+    (l.banderas || []).forEach((b) => set.add(b));
+  });
+  return set;
 }
 
 // Separado de proximaBandera para no recalcular banderasEnUso (recorre todos

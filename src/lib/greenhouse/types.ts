@@ -34,10 +34,12 @@ export interface Lote {
   bancalId: string | null;
   fechaVenta: string;
   movimientos: Movimiento[];
-  // Número de la banderita física puesta en el invernadero al sembrar. Se
-  // recicla entre lotes (no es único): sigue a la planta durante su vida y se
-  // reutiliza en otra siembra una vez que este lote se cosecha.
-  bandera: number;
+  // Números de las banderitas físicas puestas en el invernadero (normalmente
+  // una, pero un lote puede tener más de una — ej. lotes fusionados). Se
+  // reciclan entre lotes (no son únicas): siguen a la planta durante toda su
+  // vida y se liberan (banderas queda vacío) una vez que el lote se cosecha
+  // por completo.
+  banderas: number[];
 }
 
 export interface PlanItem {

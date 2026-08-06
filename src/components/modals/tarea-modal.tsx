@@ -12,7 +12,7 @@ import { ResumenRegistroDialog, type ResumenRegistro } from '@/components/modals
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import { confirmarSiembra, ejecutarMovimiento, type EjecutarMovimientoParams } from '@/lib/greenhouse/actions';
-import { banderasEnUso, fd, fracTubosStr, hoy, maxPlantas, plantasEnBanc, varLabelPorId } from '@/lib/greenhouse/helpers';
+import { banderasEnUso, fd, formatBanderas, fracTubosStr, hoy, maxPlantas, plantasEnBanc, varLabelPorId } from '@/lib/greenhouse/helpers';
 import { bancalLabel, type TareaHoy } from '@/lib/greenhouse/tareas';
 
 export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose: () => void }) {
@@ -141,7 +141,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
     setResumen({
       titulo:
         tarea!.tipo === 'traspaso_engorda'
-          ? `Confirmar traspaso a engorda — bandera N°${tarea!.bandera}`
+          ? `Confirmar traspaso a engorda — bandera ${formatBanderas(tarea!.banderas)}`
           : `Confirmar traspaso a adulto — ${varLabelPorId(state.vars, tarea!.varId)}`,
       filas: [
         { label: 'Variedad', value: varLabelPorId(state.vars, tarea!.varId) },
@@ -170,7 +170,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
   const titulo = esSiembra
     ? `Sembrar ${varLabelTarea}`
     : tarea.tipo === 'traspaso_engorda'
-      ? `Traspasar bandera N°${tarea.bandera} (${varLabelTarea}) a engorda`
+      ? `Traspasar bandera ${formatBanderas(tarea.banderas)} (${varLabelTarea}) a engorda`
       : `Traspasar ${varLabelTarea} a adulto`;
 
   return (
