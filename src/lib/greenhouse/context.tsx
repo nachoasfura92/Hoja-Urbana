@@ -6,13 +6,19 @@ import { defS } from './helpers';
 import { cargarEstadoDesdeTablas, guardarEstadoEnTablas } from './repository';
 import type { EstadoInvernadero } from './types';
 
-// Reemplaza la sincronización con Google Sheets (server.js) por Supabase,
-// manteniendo el mismo patrón: estado en memoria + guardado debounced +
-// respaldo en localStorage si falla la red. Misma clave de storage que el original.
-// Los datos viven en tablas normalizadas (ver repository.ts); acá solo se
+// Reemplaza la sincronización con Google Sheets (server.js) por Supabase. Los
+// datos viven en tablas normalizadas (ver repository.ts); acá solo se
 // arma/desarma el mismo objeto EstadoInvernadero que ya usa toda la UI.
+//
+// Varias personas usan la app al mismo tiempo desde pestañas/dispositivos
+// distintos. Antes, cada update() guardaba la copia del estado que esa
+// pestaña tenía en memoria desde que cargó la página — si otra persona había
+// hecho cambios mientras tanto (a veces horas antes), esa pestaña los pisaba
+// sin avisar al guardar los suyos: así se perdían banderas, siembras, etc.
+// Ahora cada update() vuelve a leer el estado más reciente del servidor,
+// aplica el cambio sobre ESE, y recién ahí guarda — nunca sobre una copia
+// vieja en memoria.
 const STORAGE_KEY = 'inv_v9';
-const SAVE_DEBOUNCE_MS = 1500;
 
 export type SyncStatus = 'idle' | 'ok' | 'saving' | 'error';
 
@@ -30,14 +36,23 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
   const [supabase] = useState(() => createClient());
   const [state, setState] = useState<EstadoInvernadero>(() => defS());
   const [loaded, setLoaded] = useState(false);
-  // Solo true si la carga inicial vino realmente de Supabase. El guardado
-  // automático queda bloqueado mientras esto sea false, para que un estado
-  // de respaldo/vacío por una carga fallida nunca pueda sobreescribir datos
-  // reales en el servidor (así se perdieron datos reales una vez).
+  // Solo true si la carga inicial vino realmente de Supabase. Si vino de un
+  // respaldo local o vacío por una carga fallida, dashboard-shell bloquea
+  // toda la UI (ver ahí) en vez de arriesgar guardar ese respaldo por
+  // encima de datos reales.
   const [loadOk, setLoadOk] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
-  // Evita disparar un guardado espurio apenas termina la carga inicial.
-  const skipNextSaveRef = useRef(true);
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  // Encadena los update() entre sí: cada uno espera a que el anterior
+  // termine de leer+guardar antes de empezar el suyo. Si no, dos acciones
+  // seguidas en la misma pestaña podrían leer "lo más reciente" al mismo
+  // tiempo (antes de que la primera guardara) y la segunda en terminar
+  // pisaría a la primera.
+  const updateQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     let cancelled = false;
@@ -51,12 +66,11 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
       } catch {
         if (cancelled) return;
         // La carga real falló: se muestra un respaldo local (o vacío) solo
-        // para que se pueda ver algo, pero nunca se guarda automáticamente
-        // desde acá — podría ser información vieja o vacía y pisar datos
-        // reales en el servidor. Hay que recargar la página para reintentar.
-        // Se combina con defS() como base para que un respaldo local viejo,
-        // guardado antes de agregar un campo nuevo al estado (ej. nutricion),
-        // no rompa el render por faltarle esa propiedad.
+        // para que se pueda ver algo. dashboard-shell bloquea la UI mientras
+        // loadOk sea false, así que esto nunca se guarda por encima de datos
+        // reales. Se combina con defS() como base para que un respaldo local
+        // viejo, guardado antes de agregar un campo nuevo al estado, no
+        // rompa el render por faltarle esa propiedad.
         const local = localStorage.getItem(STORAGE_KEY);
         setState(local ? { ...defS(), ...(JSON.parse(local) as EstadoInvernadero) } : defS());
         setSyncStatus('error');
@@ -69,39 +83,44 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
     };
   }, [supabase]);
 
-  const guardarEnServidor = useCallback(
-    async (payload: EstadoInvernadero) => {
-      setSyncStatus('saving');
-      try {
-        await guardarEstadoEnTablas(supabase, payload);
-        setSyncStatus('ok');
-      } catch {
-        setSyncStatus('error');
-      }
+  const update = useCallback(
+    (mutator: (draft: EstadoInvernadero) => void) => {
+      // Respuesta visual inmediata: aplica el cambio sobre lo último que
+      // esta pestaña tiene en memoria, sin esperar la red.
+      setState((prev) => {
+        const optimista = structuredClone(prev);
+        mutator(optimista);
+        return optimista;
+      });
+
+      const run = async () => {
+        setSyncStatus('saving');
+        let base: EstadoInvernadero;
+        try {
+          base = await cargarEstadoDesdeTablas(supabase);
+        } catch {
+          // No se pudo confirmar el estado más reciente del servidor: para
+          // no perder la acción de la persona, se aplica igual sobre el
+          // último estado conocido en esta pestaña, pero queda marcado como
+          // error — hay riesgo de pisar un cambio hecho en otra pestaña
+          // mientras no hubo red.
+          base = stateRef.current;
+        }
+        const next = structuredClone(base);
+        mutator(next);
+        setState(next);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        try {
+          await guardarEstadoEnTablas(supabase, next);
+          setSyncStatus('ok');
+        } catch {
+          setSyncStatus('error');
+        }
+      };
+      updateQueueRef.current = updateQueueRef.current.then(run, run);
     },
     [supabase]
   );
-
-  // Sincroniza con Supabase (debounced) cada vez que el estado cambia, pero
-  // solo si la carga inicial fue realmente exitosa (ver loadOk arriba).
-  useEffect(() => {
-    if (!loaded || !loadOk) return;
-    if (skipNextSaveRef.current) {
-      skipNextSaveRef.current = false;
-      return;
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    const timer = setTimeout(() => guardarEnServidor(state), SAVE_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [state, loaded, loadOk, guardarEnServidor]);
-
-  const update = useCallback((mutator: (draft: EstadoInvernadero) => void) => {
-    setState((prev) => {
-      const next = structuredClone(prev);
-      mutator(next);
-      return next;
-    });
-  }, []);
 
   return (
     <GreenhouseContext.Provider value={{ state, loaded, loadOk, syncStatus, update }}>
