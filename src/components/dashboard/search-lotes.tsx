@@ -11,12 +11,37 @@ import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { EtapaBadge } from '@/components/dashboard/etapa-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
-import { buscarLotes, dd, dr, fracTubosStr, varLabel, varLabelPorId } from '@/lib/greenhouse/helpers';
+import { buscarLotes, dd, dr, fracTubosStr, ubicacionLote, varLabel, varLabelPorId, type OrdenLotes } from '@/lib/greenhouse/helpers';
+import { cn } from '@/lib/utils';
+import type { Etapa } from '@/lib/greenhouse/types';
 
-function formatBancal(bancalId: string | null): string {
-  if (!bancalId) return 'Sin bancal asignado';
-  const [tipo, num] = bancalId.split('_');
-  return `${tipo === 'eng' ? 'Engorda' : 'Adulto'} ${num}`;
+const ETAPAS: { etapa: Etapa; label: string }[] = [
+  { etapa: 'plantines', label: 'Mesa de plantines' },
+  { etapa: 'engorda', label: 'Bancales de engorda' },
+  { etapa: 'adulto', label: 'Bancales de adulto' },
+];
+
+const ORDEN_ITEMS: Record<OrdenLotes, string> = {
+  cosecha: 'Próxima cosecha',
+  crecimiento_desc: 'Más días creciendo',
+  crecimiento_asc: 'Menos días creciendo',
+  variedad: 'Variedad',
+  bandera: 'N° de bandera',
+};
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+        active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-muted'
+      )}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function SearchLotes() {
@@ -24,31 +49,43 @@ export function SearchLotes() {
   const { openLote } = useModals();
   const [open, setOpen] = useState(false);
   const [bandera, setBandera] = useState('');
-  const [varId, setVarId] = useState('todas');
+  const [varIds, setVarIds] = useState<number[]>([]);
+  const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [diasMin, setDiasMin] = useState('');
   const [diasCosechaMax, setDiasCosechaMax] = useState('');
+  const [orden, setOrden] = useState<OrdenLotes>('cosecha');
 
-  const variedadItems = useMemo(
-    () => ({ todas: 'Todas', ...Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])) }),
-    [state.vars]
-  );
+  function toggleVar(id: number) {
+    setVarIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleEtapa(etapa: Etapa) {
+    setEtapas((prev) => (prev.includes(etapa) ? prev.filter((x) => x !== etapa) : [...prev, etapa]));
+  }
 
   const resultados = useMemo(
     () =>
-      buscarLotes(state.lotes, {
-        bandera: bandera ? parseInt(bandera, 10) : null,
-        varId: varId === 'todas' ? null : parseInt(varId, 10),
-        diasCrecimientoMin: diasMin ? parseInt(diasMin, 10) : null,
-        diasCosechaMax: diasCosechaMax !== '' ? parseInt(diasCosechaMax, 10) : null,
-      }),
-    [state.lotes, bandera, varId, diasMin, diasCosechaMax]
+      buscarLotes(
+        state.lotes,
+        {
+          bandera: bandera ? parseInt(bandera, 10) : null,
+          varIds,
+          etapas,
+          diasCrecimientoMin: diasMin ? parseInt(diasMin, 10) : null,
+          diasCosechaMax: diasCosechaMax !== '' ? parseInt(diasCosechaMax, 10) : null,
+        },
+        orden
+      ),
+    [state.lotes, bandera, varIds, etapas, diasMin, diasCosechaMax, orden]
   );
 
   function limpiarFiltros() {
     setBandera('');
-    setVarId('todas');
+    setVarIds([]);
+    setEtapas([]);
     setDiasMin('');
     setDiasCosechaMax('');
+    setOrden('cosecha');
   }
 
   function verLote(id: number) {
@@ -71,35 +108,58 @@ export function SearchLotes() {
           </DialogHeader>
 
           <div className="grid gap-3">
-            <div className="grid gap-1.5">
-              <Label>N° de bandera</Label>
-              <Input
-                type="number"
-                min={1}
-                placeholder="Ej: 4"
-                value={bandera}
-                onChange={(e) => setBandera(e.target.value)}
-                autoFocus
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <div className="grid gap-1.5">
-                <Label className="text-xs">Variedad</Label>
-                <Select value={varId} onValueChange={(v) => setVarId(v ?? 'todas')} items={variedadItems}>
+                <Label>N° de bandera</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="Ej: 4"
+                  value={bandera}
+                  onChange={(e) => setBandera(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs">Ordenar por</Label>
+                <Select value={orden} onValueChange={(v) => setOrden((v as OrdenLotes) ?? 'cosecha')} items={ORDEN_ITEMS}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todas">Todas</SelectItem>
-                    {(state.vars || []).map((v) => (
-                      <SelectItem key={v.id} value={String(v.id)}>
-                        {varLabel(v)}
+                    {(Object.keys(ORDEN_ITEMS) as OrdenLotes[]).map((o) => (
+                      <SelectItem key={o} value={o}>
+                        {ORDEN_ITEMS[o]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs">Variedad (elige una o varias — ninguna = todas)</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {(state.vars || []).map((v) => (
+                  <Chip key={v.id} active={varIds.includes(v.id)} onClick={() => toggleVar(v.id)}>
+                    {varLabel(v)}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs">Ubicación (ninguna = todas)</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {ETAPAS.map((e) => (
+                  <Chip key={e.etapa} active={etapas.includes(e.etapa)} onClick={() => toggleEtapa(e.etapa)}>
+                    {e.label}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
               <div className="grid gap-1.5">
                 <Label className="text-xs">Días crec. mín.</Label>
                 <Input type="number" min={0} placeholder="0" value={diasMin} onChange={(e) => setDiasMin(e.target.value)} />
@@ -115,7 +175,8 @@ export function SearchLotes() {
                 />
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">{resultados.length} resultado{resultados.length === 1 ? '' : 's'}</p>
               <Button variant="link" className="h-auto p-0 text-xs" onClick={limpiarFiltros}>
                 Limpiar filtros
               </Button>
@@ -141,7 +202,7 @@ export function SearchLotes() {
                         <EtapaBadge etapa={l.etapa} />
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatBancal(l.bancalId)} · día {dias} · {l.plantasRestantes} plantas ·{' '}
+                        {ubicacionLote(l)} · día {dias} de crecimiento · {l.plantasRestantes} plantas ·{' '}
                         {fracTubosStr(l.plantasRestantes)} tubos
                       </div>
                     </div>

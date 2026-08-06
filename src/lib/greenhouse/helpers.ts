@@ -331,23 +331,48 @@ export function computeTopPills(state: EstadoInvernadero): { nAlertas: number; l
 
 export interface FiltrosLotes {
   bandera?: number | null;
-  varId?: number | null;
+  varIds?: number[] | null;
+  etapas?: Etapa[] | null;
   diasCrecimientoMin?: number | null;
   diasCosechaMax?: number | null;
 }
+
+export type OrdenLotes = 'cosecha' | 'crecimiento_desc' | 'crecimiento_asc' | 'variedad' | 'bandera';
 
 // Solo busca entre lotes activos: una vez cosechado por completo, el lote ya
 // no está físicamente en el invernadero (su bandera ya se liberó y puede
 // haberse reciclado en otra siembra). Mientras esté activo (en mesa de
 // plantines, engorda o adulto) se puede encontrar por su bandera.
-export function buscarLotes(lotes: Lote[], filtros: FiltrosLotes): Lote[] {
-  return (lotes || [])
+export function buscarLotes(lotes: Lote[], filtros: FiltrosLotes, orden: OrdenLotes = 'cosecha'): Lote[] {
+  const resultado = (lotes || [])
     .filter((l) => l.etapa !== 'cosechado')
     .filter((l) => !filtros.bandera || l.bandera === filtros.bandera)
-    .filter((l) => !filtros.varId || l.varId === filtros.varId)
+    .filter((l) => !filtros.varIds?.length || filtros.varIds.includes(l.varId))
+    .filter((l) => !filtros.etapas?.length || filtros.etapas.includes(l.etapa))
     .filter((l) => filtros.diasCrecimientoMin == null || dd(l.fechaEtapa) >= filtros.diasCrecimientoMin)
-    .filter((l) => filtros.diasCosechaMax == null || dr(l.fechaVenta) <= filtros.diasCosechaMax)
-    .sort((a, b) => dr(a.fechaVenta) - dr(b.fechaVenta));
+    .filter((l) => filtros.diasCosechaMax == null || dr(l.fechaVenta) <= filtros.diasCosechaMax);
+
+  switch (orden) {
+    case 'crecimiento_desc':
+      return resultado.sort((a, b) => dd(b.fechaEtapa) - dd(a.fechaEtapa));
+    case 'crecimiento_asc':
+      return resultado.sort((a, b) => dd(a.fechaEtapa) - dd(b.fechaEtapa));
+    case 'variedad':
+      return resultado.sort((a, b) => a.varNom.localeCompare(b.varNom));
+    case 'bandera':
+      return resultado.sort((a, b) => a.bandera - b.bandera);
+    default:
+      return resultado.sort((a, b) => dr(a.fechaVenta) - dr(b.fechaVenta));
+  }
+}
+
+// Dónde está físicamente un lote ahora mismo: en mesa de plantines (no usa
+// bancales) o en el bancal de engorda/adulto que le corresponda.
+export function ubicacionLote(l: Lote): string {
+  if (l.etapa === 'plantines') return 'Mesa de plantines';
+  if (!l.bancalId) return 'Sin bancal asignado';
+  const [tipo, num] = l.bancalId.split('_');
+  return `${tipo === 'eng' ? 'Engorda' : 'Adulto'} ${num}`;
 }
 
 // ── Banderas (identificador físico del lote durante todo su ciclo) ────────

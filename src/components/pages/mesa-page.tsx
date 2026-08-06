@@ -8,7 +8,7 @@ import { MiniProgress } from '@/components/dashboard/mini-progress';
 import { BanderaBadge } from '@/components/dashboard/bandera-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
-import { dd, fd, fracTubosStr, gv, gvColor, varLabel } from '@/lib/greenhouse/helpers';
+import { dd, fd, fracTubosStr, gv, gvColor, ubicacionLote, varLabel } from '@/lib/greenhouse/helpers';
 import { cn } from '@/lib/utils';
 import type { Lote } from '@/lib/greenhouse/types';
 
@@ -89,12 +89,12 @@ export function MesaPage() {
                     >
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
                         <span className="flex items-center gap-1.5 text-sm font-medium">
-                          Lote #{l.id} · {fd(l.fechaInicio)}
+                          {varLabel(v)}
                           <BanderaBadge numero={l.bandera} />
                         </span>
                         <div className="flex items-center gap-1.5">
                           <Badge variant="outline" className="border-transparent bg-accent text-accent-foreground">
-                            día {dias}
+                            día {dias} de crecimiento
                           </Badge>
                           <Button
                             size="sm"
@@ -109,7 +109,8 @@ export function MesaPage() {
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {l.plantasRestantes} plantas · {fracTubosStr(l.plantasRestantes)} tubos
+                        Lote #{l.id} · {fd(l.fechaInicio)} · {ubicacionLote(l)} · {l.plantasRestantes} plantas ·{' '}
+                        {fracTubosStr(l.plantasRestantes)} tubos
                       </div>
                       <MiniProgress value={pct} color={bc} className="mt-1" />
                       <div

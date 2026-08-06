@@ -8,7 +8,7 @@ import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { limpiarBancal } from '@/lib/greenhouse/actions';
 import { COLORS_VAR } from '@/lib/greenhouse/constants';
-import { capacidadTubos, dd, dr, fd, fracTubosStr, getBanc, maxPlantas, plantasEnBanc, varLabelPorId } from '@/lib/greenhouse/helpers';
+import { capacidadTubos, dd, dr, fd, fracTubosStr, getBanc, maxPlantas, plantasEnBanc, ubicacionLote, varLabelPorId } from '@/lib/greenhouse/helpers';
 
 export function BancalModal() {
   const { state, update } = useGreenhouse();
@@ -131,7 +131,8 @@ export function BancalModal() {
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {l.plantasRestantes} plantas · {fracTubosStr(l.plantasRestantes)} tubos · día {dias}/{dObj}
+                    {ubicacionLote(l)} · día {dias}/{dObj} de crecimiento · {l.plantasRestantes} plantas ·{' '}
+                    {fracTubosStr(l.plantasRestantes)} tubos
                   </div>
                   <div className="text-xs text-muted-foreground">Cosecha est. {fd(l.fechaVenta)}</div>
                   <MiniProgress value={pct} color={pct >= 100 ? 'var(--success)' : '#2A7D2E'} className="mt-1" />
