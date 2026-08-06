@@ -7,15 +7,25 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { MiniProgress } from '@/components/dashboard/mini-progress';
 import { BanderaBadge, BanderaBadges } from '@/components/dashboard/bandera-badge';
+import { DatePicker } from '@/components/dashboard/date-picker';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
-import { agregarBandera, agregarPlantasAjuste, editarBandera, editarPauta, eliminarBandera, eliminarPlantas } from '@/lib/greenhouse/actions';
-import { banderasEnUso, dd, fd, fracTubosStr, serieNutricionLote, ubicacionLote, varLabelPorId } from '@/lib/greenhouse/helpers';
+import {
+  agregarBandera,
+  agregarPlantasAjuste,
+  editarBandera,
+  editarLote,
+  editarPauta,
+  eliminarBandera,
+  eliminarPlantas,
+} from '@/lib/greenhouse/actions';
+import { banderasEnUso, dd, fd, fracTubosStr, gv, serieNutricionLote, ubicacionLote, varLabel, varLabelPorId } from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
 const SIGUIENTE: Partial<Record<Etapa, Etapa>> = {
@@ -38,6 +48,10 @@ export function LoteModal() {
     () => (lote ? serieNutricionLote(lote, state.nutricion.mediciones, 'ec') : []),
     [lote, state.nutricion.mediciones]
   );
+  const variedadItems = useMemo(
+    () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])),
+    [state.vars]
+  );
 
   const [eliminarOpen, setEliminarOpen] = useState(false);
   const [plantasEliminar, setPlantasEliminar] = useState<number | ''>(0);
@@ -47,6 +61,11 @@ export function LoteModal() {
   const [agregarOpen, setAgregarOpen] = useState(false);
   const [plantasAgregar, setPlantasAgregar] = useState<number | ''>(0);
   const [notaAgregar, setNotaAgregar] = useState('');
+
+  const [editandoLote, setEditandoLote] = useState(false);
+  const [varIdEdit, setVarIdEdit] = useState('');
+  const [plantasEdit, setPlantasEdit] = useState<number | ''>(0);
+  const [fechaInicioEdit, setFechaInicioEdit] = useState('');
 
   const [editandoPauta, setEditandoPauta] = useState(false);
   const [dpEdit, setDpEdit] = useState(0);
@@ -64,6 +83,7 @@ export function LoteModal() {
   const [lastLoteId, setLastLoteId] = useState<number | null>(null);
   if (lote && lote.id !== lastLoteId) {
     setLastLoteId(lote.id);
+    setEditandoLote(false);
     setEditandoPauta(false);
     setEliminarOpen(false);
     setAgregarOpen(false);
@@ -91,6 +111,30 @@ export function LoteModal() {
     banderaEditNueva !== '' &&
     banderaEditNueva !== editandoBanderaOriginal &&
     (misBanderas.has(banderaEditNueva) || banderasDeOtros.has(banderaEditNueva));
+
+  function abrirEditarLote() {
+    setVarIdEdit(String(lote!.varId));
+    setPlantasEdit(lote!.plantas);
+    setFechaInicioEdit(lote!.fechaInicio);
+    setEditandoLote(true);
+  }
+
+  function guardarLote() {
+    const vIdNum = varIdEdit ? parseInt(varIdEdit, 10) : null;
+    if (!vIdNum || !plantasEdit || !fechaInicioEdit) return;
+    const variedad = gv(state.vars, vIdNum);
+    update((draft) =>
+      editarLote(draft, {
+        loteId: lote!.id,
+        varId: vIdNum,
+        varNom: variedad.nombre,
+        plantas: plantasEdit,
+        fechaInicio: fechaInicioEdit,
+        autor,
+      })
+    );
+    setEditandoLote(false);
+  }
 
   function abrirEditarPauta() {
     setDpEdit(lote!.dp);
@@ -185,6 +229,62 @@ export function LoteModal() {
               <BanderaBadges numeros={lote.banderas} />
             </DialogTitle>
           </DialogHeader>
+
+          <div className="rounded-md border px-3 py-2">
+            <div className="mb-1.5 flex items-center justify-between">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Datos del lote</h4>
+              {!editandoLote && (
+                <Button variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-xs" onClick={abrirEditarLote}>
+                  <Pencil className="size-3" />
+                  Editar
+                </Button>
+              )}
+            </div>
+            {editandoLote ? (
+              <div className="grid gap-1.5">
+                <div className="grid gap-1">
+                  <Label className="text-xs">Especie</Label>
+                  <Select value={varIdEdit} onValueChange={(v) => setVarIdEdit(v ?? '')} items={variedadItems}>
+                    <SelectTrigger className="h-8 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(state.vars || []).map((v) => (
+                        <SelectItem key={v.id} value={String(v.id)}>
+                          {varLabel(v)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1">
+                  <Label className="text-xs">Cantidad sembrada</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={plantasEdit}
+                    onChange={(e) => setPlantasEdit(e.target.value ? parseInt(e.target.value, 10) : '')}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <Label className="text-xs">Fecha de plantado</Label>
+                  <DatePicker value={fechaInicioEdit} onChange={setFechaInicioEdit} />
+                </div>
+                <div className="mt-1 flex justify-end gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => setEditandoLote(false)}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" onClick={guardarLote} disabled={!varIdEdit || !plantasEdit || !fechaInicioEdit}>
+                    Guardar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                {varLabelPorId(state.vars, lote.varId)} · {lote.plantas} plantas sembradas · {fd(lote.fechaInicio)}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-2">
             <MiniStat label="Plantas" value={lote.plantasRestantes} />

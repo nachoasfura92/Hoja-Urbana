@@ -476,6 +476,64 @@ export function eliminarBandera(draft: EstadoInvernadero, params: EliminarBander
   log(draft, 'Bandera eliminada', `${l.varNom}: ${detalle}`, params.autor);
 }
 
+// Corrige a mano la especie, la cantidad sembrada o la fecha de siembra de
+// un lote (ej. error de tipeo al registrarlo). Si el lote ocupa un bancal,
+// migra su cupo ahí también (misma lógica que un traspaso: sacar lo viejo,
+// poner lo nuevo) para que no quede mostrando la variedad o cantidad vieja.
+// La fecha de venta estimada se recalcula con el mismo criterio que
+// editarPauta: depende de fechaInicio salvo que el lote ya esté en adulto,
+// donde depende de la fecha real de entrada a esa etapa.
+export interface EditarLoteParams {
+  loteId: number;
+  varId: number;
+  varNom: string;
+  plantas: number;
+  fechaInicio: string;
+  autor?: string;
+}
+
+export function editarLote(draft: EstadoInvernadero, params: EditarLoteParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l) return;
+  const detalles: string[] = [];
+  const cambiaVar = l.varId !== params.varId;
+  const cambiaCantidad = l.plantas !== params.plantas;
+  const cambiaFecha = l.fechaInicio !== params.fechaInicio;
+  const plantasRestantesNuevo = cambiaCantidad
+    ? Math.max(0, l.plantasRestantes + (params.plantas - l.plantas))
+    : l.plantasRestantes;
+
+  if (l.bancalId && (cambiaVar || cambiaCantidad)) {
+    remSlot(draft.bancales, l.bancalId, l.varId, l.plantasRestantes);
+    addSlot(draft.bancales, l.bancalId, params.varId, params.varNom, plantasRestantesNuevo);
+  }
+
+  if (cambiaVar) {
+    detalles.push(`Variedad: ${l.varNom} → ${params.varNom}`);
+    l.varId = params.varId;
+    l.varNom = params.varNom;
+  }
+  if (cambiaCantidad) {
+    detalles.push(`Cantidad sembrada: ${l.plantas} → ${params.plantas}`);
+    l.plantas = params.plantas;
+    l.plantasRestantes = plantasRestantesNuevo;
+  }
+  if (cambiaFecha) {
+    detalles.push(`Fecha de siembra: ${fd(l.fechaInicio)} → ${fd(params.fechaInicio)}`);
+    if (l.etapa === 'plantines') l.fechaEtapa = params.fechaInicio;
+    l.fechaInicio = params.fechaInicio;
+    if (l.etapa !== 'adulto' && l.etapa !== 'cosechado') {
+      l.fechaVenta = fmas(l.fechaInicio, l.dp + l.de + l.da);
+    }
+  }
+
+  if (!detalles.length) return;
+  if (!l.movimientos) l.movimientos = [];
+  const detalle = detalles.join(' · ');
+  l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Lote editado', detalle, autor: params.autor });
+  log(draft, 'Lote editado', `${l.varNom}: ${detalle}`, params.autor);
+}
+
 // Ajusta la pauta (días objetivo por etapa) de un lote puntual, sin afectar
 // al plan de siembra ni a otros lotes. Si el lote ya está en adulto, recalcula
 // fechaVenta desde la fecha real de entrada a esa etapa; si no, la recalcula
