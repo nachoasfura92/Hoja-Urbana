@@ -387,31 +387,6 @@ export function eliminarPlantas(draft: EstadoInvernadero, params: EliminarPlanta
   log(draft, params.esMerma ? 'Merma' : 'Eliminación', `${l.varNom}: ${detalle}`);
 }
 
-// Corrige la cantidad de un lote hacia arriba (ej. un conteo inicial mal
-// hecho, o plantas recuperadas) — a diferencia de eliminarPlantas, acá solo se
-// suma; no toca merma ni el total histórico sembrado (l.plantas), solo lo que
-// hay actualmente en pie.
-export interface AgregarPlantasAjusteParams {
-  loteId: number;
-  plantas: number;
-  nota: string;
-  autor?: string;
-}
-
-export function agregarPlantasAjuste(draft: EstadoInvernadero, params: AgregarPlantasAjusteParams) {
-  const l = draft.lotes.find((x) => x.id === params.loteId);
-  if (!l) return;
-  const p = Math.max(0, params.plantas);
-  if (p <= 0) return;
-  l.plantasRestantes += p;
-  if (l.bancalId) addSlot(draft.bancales, l.bancalId, l.varId, l.varNom, p);
-  const nota = params.nota.trim();
-  const detalle = `+${p} plantas (${fracTubosStr(p)} tubos) · ajuste${nota ? ' · ' + nota : ''}`;
-  if (!l.movimientos) l.movimientos = [];
-  l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Ajuste', detalle, autor: params.autor });
-  log(draft, 'Ajuste', `${l.varNom}: ${detalle}`, params.autor);
-}
-
 // Un lote puede tener más de una banderita física asociada a la vez (ej.
 // lotes fusionados). Estas tres acciones no validan duplicados acá: eso lo
 // hace la UI contra banderasEnUso, igual que al sembrar.

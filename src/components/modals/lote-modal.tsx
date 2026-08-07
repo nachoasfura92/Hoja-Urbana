@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { MiniProgress } from '@/components/dashboard/mini-progress';
 import { BanderaBadge, BanderaBadges } from '@/components/dashboard/bandera-badge';
 import { DatePicker } from '@/components/dashboard/date-picker';
@@ -18,7 +17,6 @@ import { useModals } from '@/lib/greenhouse/modals-context';
 import { useCurrentUser } from '@/lib/auth/current-user-context';
 import {
   agregarBandera,
-  agregarPlantasAjuste,
   editarBandera,
   editarLote,
   editarPauta,
@@ -58,10 +56,6 @@ export function LoteModal() {
   const [esMerma, setEsMerma] = useState(false);
   const [motivo, setMotivo] = useState('');
 
-  const [agregarOpen, setAgregarOpen] = useState(false);
-  const [plantasAgregar, setPlantasAgregar] = useState<number | ''>(0);
-  const [notaAgregar, setNotaAgregar] = useState('');
-
   const [editandoLote, setEditandoLote] = useState(false);
   const [varIdEdit, setVarIdEdit] = useState('');
   const [plantasEdit, setPlantasEdit] = useState<number | ''>(0);
@@ -86,7 +80,6 @@ export function LoteModal() {
     setEditandoLote(false);
     setEditandoPauta(false);
     setEliminarOpen(false);
-    setAgregarOpen(false);
     setAgregandoBandera(false);
     setEditandoBanderaOriginal(null);
   }
@@ -198,19 +191,6 @@ export function LoteModal() {
     update((draft) => eliminarBandera(draft, { loteId: lote!.id, bandera: b, autor }));
   }
 
-  function abrirAgregar() {
-    setPlantasAgregar(0);
-    setNotaAgregar('');
-    setAgregarOpen(true);
-  }
-
-  function confirmarAgregar() {
-    update((draft) =>
-      agregarPlantasAjuste(draft, { loteId: lote!.id, plantas: plantasAgregar || 0, nota: notaAgregar.trim(), autor })
-    );
-    setAgregarOpen(false);
-  }
-
   function handleAvanzar() {
     closeLote();
     if (sig === 'cosechado') openCosechar(lote!.id);
@@ -221,7 +201,7 @@ export function LoteModal() {
 
   return (
     <>
-      <Dialog open={!!loteId && !eliminarOpen && !agregarOpen} onOpenChange={(o) => !o && closeLote()}>
+      <Dialog open={!!loteId && !eliminarOpen} onOpenChange={(o) => !o && closeLote()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -493,9 +473,9 @@ export function LoteModal() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" className="gap-1" onClick={abrirAgregar}>
-              <Plus className="size-3.5" />
-              Agregar
+            <Button variant="outline" className="gap-1" onClick={abrirEditarLote}>
+              <Pencil className="size-3.5" />
+              Modificar
             </Button>
             <Button variant="destructive" onClick={abrirEliminar}>
               Eliminar
@@ -504,43 +484,6 @@ export function LoteModal() {
               Cerrar
             </Button>
             {sig && <Button onClick={handleAvanzar}>{sig === 'cosechado' ? 'Cosechar' : `→ ${sig}`}</Button>}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={agregarOpen} onOpenChange={setAgregarOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Agregar plantas (ajuste) — {varLabelPorId(state.vars, lote.varId)}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3">
-            <div className="grid gap-1.5">
-              <Label>¿Cuántas plantas deseas agregar?</Label>
-              <Input
-                type="number"
-                min={1}
-                value={plantasAgregar}
-                onChange={(e) => setPlantasAgregar(e.target.value ? parseInt(e.target.value, 10) : '')}
-              />
-              <p className="text-xs text-muted-foreground">{fracTubosStr(plantasAgregar || 0)} tubos equivalentes</p>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Motivo (opcional)</Label>
-              <Textarea
-                rows={2}
-                placeholder="Ej: conteo inicial estaba bajo, se recuperaron plantas..."
-                value={notaAgregar}
-                onChange={(e) => setNotaAgregar(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAgregarOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={confirmarAgregar} disabled={!plantasAgregar}>
-              Agregar
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
