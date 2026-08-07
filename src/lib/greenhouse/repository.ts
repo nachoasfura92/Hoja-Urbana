@@ -334,6 +334,14 @@ export async function guardarEstadoEnTablas(supabase: DB, state: EstadoInvernade
   );
   await upsertYPodar(supabase, 'lote_movimientos', movimientoRows, 'id');
 
+  // bancal_slots no tiene una identidad propia estable entre guardados: acá
+  // se recalcula por completo desde state.bancales cada vez, así que el id
+  // que le toca a cada fila depende del orden actual del objeto, no de cuál
+  // fila es "la misma" que la vez anterior. Un upsert por id podía chocar
+  // con la restricción única de (bancal_id, variedad_id) si el orden o la
+  // cantidad de slots cambiaba entre guardados (ej. al recalcular ocupación
+  // de golpe). Se borra todo y se inserta de nuevo: como la tabla queda
+  // vacía antes de insertar, no hay riesgo de choque de esa restricción.
   const slotRows: Record<string, unknown>[] = [];
   let slotId = 1;
   Object.entries(state.bancales).forEach(([bancalId, slots]) => {
@@ -341,7 +349,14 @@ export async function guardarEstadoEnTablas(supabase: DB, state: EstadoInvernade
       slotRows.push({ id: slotId++, bancal_id: bancalId, variedad_id: s.varId, plantas: s.plantas });
     });
   });
-  await upsertYPodar(supabase, 'bancal_slots', slotRows, 'id');
+  {
+    const { error } = await supabase.from('bancal_slots').delete().not('id', 'is', null);
+    if (error) throw new Error(`bancal_slots: ${error.message}`);
+  }
+  if (slotRows.length > 0) {
+    const { error } = await supabase.from('bancal_slots').insert(slotRows);
+    if (error) throw new Error(`bancal_slots: ${error.message}`);
+  }
 
   const planRows = state.plan.map((p) => ({
     id: p.id,
