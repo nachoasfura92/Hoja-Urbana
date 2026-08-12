@@ -95,8 +95,15 @@ export function TareasPage() {
   const [filtroManana, setFiltroManana] = useState<FiltroTipo>('todas');
 
   const tareas = useMemo(() => calcularTareasHoy(state), [state]);
-  const tareasPendientes = tareas.filter((t) => t.diasRestantes < 0);
-  const tareasHoy = tareas.filter((t) => t.diasRestantes === 0);
+  // Una siembra atrasada sigue siendo "lo que hay que sembrar hoy" (el plan
+  // no genera una tarea por cada día salteado, solo una que arrastra el
+  // atraso) — así que, a diferencia de un traspaso vencido (ligado a un lote
+  // puntual), se muestra en Tareas de hoy en vez de quedar escondida en
+  // Pendientes. El badge sigue mostrando "Vencida hace Nd" para no perder
+  // esa información.
+  const esSiembraVencida = (t: TareaHoy) => t.tipo === 'sembrar' && t.diasRestantes < 0;
+  const tareasPendientes = tareas.filter((t) => t.diasRestantes < 0 && !esSiembraVencida(t));
+  const tareasHoy = tareas.filter((t) => t.diasRestantes === 0 || esSiembraVencida(t));
   const tareasManana = tareas.filter((t) => t.diasRestantes === 1);
 
   function ejecutarSembrar(t: TareaHoy) {
@@ -238,6 +245,8 @@ export function TareasPage() {
           onCompletar={completar}
           onEditar={setEditando}
           onVerLote={openLote}
+          onPosponer={abrirPosponer}
+          onEliminar={setEliminando}
         />
         <TareasBox
           titulo="Tareas pendientes"
