@@ -267,6 +267,8 @@ export function LoteModal() {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
+            <MiniStat label="Días desde germinación" value={dd(lote.fechaInicio)} />
+            <MiniStat label="Ubicación" value={ubicacionLote(lote)} />
             <MiniStat label="Plantas" value={lote.plantasRestantes} />
             <MiniStat label="Tubos equiv." value={fracTubosStr(lote.plantasRestantes)} />
           </div>
@@ -278,9 +280,7 @@ export function LoteModal() {
             <MiniProgress value={pct} color={pct >= 100 ? 'var(--success)' : '#2A7D2E'} />
           </div>
 
-          <div className="text-xs text-muted-foreground">
-            Cosecha est: {fd(lote.fechaVenta)} · Ubicación: {ubicacionLote(lote)}
-          </div>
+          <div className="text-xs text-muted-foreground">Cosecha est: {fd(lote.fechaVenta)}</div>
 
           <div className="rounded-md border px-3 py-2">
             <div className="mb-1.5 flex items-center justify-between">
