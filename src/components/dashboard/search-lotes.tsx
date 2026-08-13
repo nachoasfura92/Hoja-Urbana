@@ -1,18 +1,23 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { BanderaBadges } from '@/components/dashboard/bandera-badge';
 import { EtapaBadge } from '@/components/dashboard/etapa-badge';
 import { useGreenhouse } from '@/lib/greenhouse/context';
 import { useModals } from '@/lib/greenhouse/modals-context';
 import { buscarLotes, dd, dr, fracTubosStr, ubicacionLote, varLabel, varLabelPorId, type OrdenLotes } from '@/lib/greenhouse/helpers';
-import { cn } from '@/lib/utils';
 import type { Etapa } from '@/lib/greenhouse/types';
 
 const ETAPAS: { etapa: Etapa; label: string }[] = [
@@ -29,18 +34,47 @@ const ORDEN_ITEMS: Record<OrdenLotes, string> = {
   bandera: 'N° de bandera',
 };
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function FiltroDropdown<T extends string | number>({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  selected: T[];
+  onToggle: (value: T) => void;
+}) {
+  const resumen =
+    selected.length === 0
+      ? 'Todas'
+      : selected.length === 1
+        ? (options.find((o) => o.value === selected[0])?.label ?? '1 seleccionada')
+        : `${selected.length} seleccionadas`;
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-        active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-muted'
-      )}
-    >
-      {children}
-    </button>
+    <div className="grid gap-1.5">
+      <Label className="text-xs">{label}</Label>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="outline" className="w-full justify-between font-normal" />}
+        >
+          <span className="truncate">{resumen}</span>
+          <ChevronDown className="size-3.5 shrink-0 opacity-60" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="max-h-64 w-(--anchor-width) min-w-56 overflow-y-auto">
+          {options.map((o) => (
+            <DropdownMenuCheckboxItem
+              key={String(o.value)}
+              checked={selected.includes(o.value)}
+              onCheckedChange={() => onToggle(o.value)}
+            >
+              {o.label}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
@@ -62,6 +96,12 @@ export function SearchLotes() {
   function toggleEtapa(etapa: Etapa) {
     setEtapas((prev) => (prev.includes(etapa) ? prev.filter((x) => x !== etapa) : [...prev, etapa]));
   }
+
+  const variedadOpciones = useMemo(
+    () => (state.vars || []).map((v) => ({ value: v.id, label: varLabel(v) })),
+    [state.vars]
+  );
+  const etapaOpciones = useMemo(() => ETAPAS.map((e) => ({ value: e.etapa, label: e.label })), []);
 
   const resultados = useMemo(
     () =>
@@ -137,26 +177,9 @@ export function SearchLotes() {
               </div>
             </div>
 
-            <div className="grid gap-1.5">
-              <Label className="text-xs">Variedad (elige una o varias — ninguna = todas)</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {(state.vars || []).map((v) => (
-                  <Chip key={v.id} active={varIds.includes(v.id)} onClick={() => toggleVar(v.id)}>
-                    {varLabel(v)}
-                  </Chip>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label className="text-xs">Ubicación (ninguna = todas)</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {ETAPAS.map((e) => (
-                  <Chip key={e.etapa} active={etapas.includes(e.etapa)} onClick={() => toggleEtapa(e.etapa)}>
-                    {e.label}
-                  </Chip>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              <FiltroDropdown label="Variedad" options={variedadOpciones} selected={varIds} onToggle={toggleVar} />
+              <FiltroDropdown label="Ubicación" options={etapaOpciones} selected={etapas} onToggle={toggleEtapa} />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
