@@ -364,6 +364,17 @@ export function SearchLotes() {
             ({plantasSeleccionadas} plantas en total), se suman a la merma de su etapa, y sus
             banderas quedan libres para reciclarse en siembras futuras. No se puede deshacer.
           </p>
+          <div className="grid max-h-48 gap-1 overflow-y-auto rounded-md border px-2.5 py-2 text-xs">
+            {lotesSeleccionados.map((l) => (
+              <div key={l.id} className="flex items-center justify-between gap-2 border-b py-1 last:border-b-0">
+                <span className="flex items-center gap-1.5">
+                  <BanderaBadges numeros={l.banderas} />
+                  {varLabelPorId(state.vars, l.varId)}
+                </span>
+                <span className="shrink-0 text-muted-foreground">{l.plantasRestantes} plantas</span>
+              </div>
+            ))}
+          </div>
           <div className="grid gap-1.5">
             <Label>Motivo (requerido)</Label>
             <Input
