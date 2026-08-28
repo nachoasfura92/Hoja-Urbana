@@ -387,6 +387,51 @@ export function eliminarPlantas(draft: EstadoInvernadero, params: EliminarPlanta
   log(draft, params.esMerma ? 'Merma' : 'Eliminación', `${l.varNom}: ${detalle}`);
 }
 
+// Da de baja varios lotes de una sola vez, con el mismo motivo (ej. un
+// hongo que obligó a botar varios lotes). Cada lote se marca 100% como
+// merma y se elimina por completo — misma lógica que eliminarPlantas con
+// esMerma cuando no queda nada en pie, así que las banderas quedan libres
+// para reciclarse en siembras futuras.
+export interface MermarLotesMasivoParams {
+  loteIds: number[];
+  motivo: string;
+  autor?: string;
+}
+
+export function mermarLotesMasivo(draft: EstadoInvernadero, params: MermarLotesMasivoParams) {
+  const motivo = params.motivo.trim();
+  let totalPlantas = 0;
+  let totalLotes = 0;
+  params.loteIds.forEach((id) => {
+    const l = draft.lotes.find((x) => x.id === id);
+    if (!l || l.plantasRestantes <= 0) return;
+    const p = l.plantasRestantes;
+    if (l.bancalId) remSlot(draft.bancales, l.bancalId, l.varId, p);
+    if (l.etapa !== 'cosechado') {
+      if (!draft.merma) draft.merma = { plantines: 0, engorda: 0, adulto: 0 };
+      draft.merma[l.etapa] = (draft.merma[l.etapa] || 0) + p;
+    }
+    const banderasTxt = l.banderas && l.banderas.length ? ` · bandera ${l.banderas.map((b) => 'N°' + b).join(', ')}` : '';
+    log(
+      draft,
+      'Merma',
+      `${l.varNom}: ${p} plantas (${fracTubosStr(p)} tubos) · merma${motivo ? ' · ' + motivo : ''}${banderasTxt}`,
+      params.autor
+    );
+    totalPlantas += p;
+    totalLotes += 1;
+    draft.lotes = draft.lotes.filter((x) => x.id !== id);
+  });
+  if (totalLotes > 0) {
+    log(
+      draft,
+      'Merma masiva',
+      `${totalLotes} lotes eliminados por merma (${totalPlantas} plantas)${motivo ? ' · ' + motivo : ''}`,
+      params.autor
+    );
+  }
+}
+
 // Un lote puede tener más de una banderita física asociada a la vez (ej.
 // lotes fusionados). Estas tres acciones no validan duplicados acá: eso lo
 // hace la UI contra banderasEnUso, igual que al sembrar.
