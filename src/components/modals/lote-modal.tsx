@@ -23,7 +23,19 @@ import {
   eliminarBandera,
   eliminarPlantas,
 } from '@/lib/greenhouse/actions';
-import { banderasEnUso, dd, fd, fracTubosStr, gv, serieNutricionLote, ubicacionLote, varLabel, varLabelPorId } from '@/lib/greenhouse/helpers';
+import {
+  banderasEnUso,
+  dd,
+  fd,
+  fracTubosStr,
+  gv,
+  maxPlantas,
+  plantasEnBanc,
+  serieNutricionLote,
+  ubicacionLote,
+  varLabel,
+  varLabelPorId,
+} from '@/lib/greenhouse/helpers';
 import type { Etapa } from '@/lib/greenhouse/types';
 
 const SIGUIENTE: Partial<Record<Etapa, Etapa>> = {
@@ -50,6 +62,32 @@ export function LoteModal() {
     () => Object.fromEntries((state.vars || []).map((v) => [String(v.id), varLabel(v)])),
     [state.vars]
   );
+  // Bancales del mismo tipo que la etapa actual del lote — cambiar de
+  // bancal acá es una reubicación puntual, no un traspaso de etapa (eso
+  // sigue siendo el botón "→ engorda/adulto"). Mesa de plantines no usa
+  // bancales, así que no ofrece ninguno.
+  const bancalOpciones = useMemo(() => {
+    if (!lote || lote.etapa === 'plantines') return [];
+    const tipo = lote.etapa === 'engorda' ? 'eng' : 'adu';
+    const max = tipo === 'eng' ? 9 : 16;
+    return Array.from({ length: max }, (_, idx) => {
+      const i = idx + 1;
+      const k = `${tipo}_${i}`;
+      const esActual = k === lote.bancalId;
+      const usoBruto = plantasEnBanc(state.bancales, k);
+      const uso = esActual ? Math.max(0, usoBruto - lote.plantasRestantes) : usoBruto;
+      const libre = maxPlantas(k) - uso;
+      return {
+        key: k,
+        label: `${tipo === 'eng' ? 'Engorda' : 'Adulto'} ${i}${esActual ? ' (actual)' : ''} — ${fracTubosStr(Math.max(0, libre))} tubos libres`,
+        disabled: !esActual && libre < lote.plantasRestantes,
+      };
+    });
+  }, [lote, state.bancales]);
+  const bancalItems = useMemo(
+    () => Object.fromEntries(bancalOpciones.map((o) => [o.key, o.label])),
+    [bancalOpciones]
+  );
 
   const [eliminarOpen, setEliminarOpen] = useState(false);
   const [plantasEliminar, setPlantasEliminar] = useState<number | ''>(0);
@@ -60,6 +98,7 @@ export function LoteModal() {
   const [varIdEdit, setVarIdEdit] = useState('');
   const [plantasEdit, setPlantasEdit] = useState<number | ''>(0);
   const [fechaInicioEdit, setFechaInicioEdit] = useState('');
+  const [bancalIdEdit, setBancalIdEdit] = useState('');
 
   const [editandoPauta, setEditandoPauta] = useState(false);
   const [dpEdit, setDpEdit] = useState(0);
@@ -109,6 +148,7 @@ export function LoteModal() {
     setVarIdEdit(String(lote!.varId));
     setPlantasEdit(lote!.plantas);
     setFechaInicioEdit(lote!.fechaInicio);
+    setBancalIdEdit(lote!.bancalId ?? '');
     setEditandoLote(true);
   }
 
@@ -123,6 +163,7 @@ export function LoteModal() {
         varNom: variedad.nombre,
         plantas: plantasEdit,
         fechaInicio: fechaInicioEdit,
+        bancalId: lote!.etapa === 'plantines' ? undefined : bancalIdEdit || null,
         autor,
       })
     );
@@ -210,6 +251,21 @@ export function LoteModal() {
             </DialogTitle>
           </DialogHeader>
 
+          <div className="grid grid-cols-2 gap-2">
+            <MiniStat label="Días desde germinación" value={dd(lote.fechaInicio)} />
+            <MiniStat label="Ubicación" value={ubicacionLote(lote)} />
+            <MiniStat label="Plantas" value={lote.plantasRestantes} />
+            <MiniStat label="Tubos equiv." value={fracTubosStr(lote.plantasRestantes)} />
+          </div>
+
+          <div className="rounded-md bg-muted/60 p-3">
+            <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+              <span>Día en etapa: {dias}/{dObj}</span>
+              <span>Cosecha est: {fd(lote.fechaVenta)}</span>
+            </div>
+            <MiniProgress value={pct} color={pct >= 100 ? 'var(--success)' : '#2A7D2E'} />
+          </div>
+
           <div className="rounded-md border px-3 py-2">
             <div className="mb-1.5 flex items-center justify-between">
               <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Datos del lote</h4>
@@ -250,6 +306,23 @@ export function LoteModal() {
                   <Label className="text-xs">Fecha de plantado</Label>
                   <DatePicker value={fechaInicioEdit} onChange={setFechaInicioEdit} />
                 </div>
+                {bancalOpciones.length > 0 && (
+                  <div className="grid gap-1">
+                    <Label className="text-xs">Bancal</Label>
+                    <Select value={bancalIdEdit} onValueChange={(v) => setBancalIdEdit(v ?? '')} items={bancalItems}>
+                      <SelectTrigger className="h-8 w-full">
+                        <SelectValue placeholder="-- Selecciona bancal --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bancalOpciones.map((o) => (
+                          <SelectItem key={o.key} value={o.key} disabled={o.disabled}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="mt-1 flex justify-end gap-1.5">
                   <Button variant="outline" size="sm" onClick={() => setEditandoLote(false)}>
                     Cancelar
@@ -261,26 +334,11 @@ export function LoteModal() {
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">
-                {varLabelPorId(state.vars, lote.varId)} · {lote.plantas} plantas sembradas · {fd(lote.fechaInicio)}
+                {varLabelPorId(state.vars, lote.varId)} · {lote.plantas} plantas sembradas · {fd(lote.fechaInicio)} ·{' '}
+                {ubicacionLote(lote)}
               </div>
             )}
           </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <MiniStat label="Días desde germinación" value={dd(lote.fechaInicio)} />
-            <MiniStat label="Ubicación" value={ubicacionLote(lote)} />
-            <MiniStat label="Plantas" value={lote.plantasRestantes} />
-            <MiniStat label="Tubos equiv." value={fracTubosStr(lote.plantasRestantes)} />
-          </div>
-
-          <div className="rounded-md bg-muted/60 p-3">
-            <div className="mb-1 text-xs text-muted-foreground">
-              Día en etapa: {dias}/{dObj}
-            </div>
-            <MiniProgress value={pct} color={pct >= 100 ? 'var(--success)' : '#2A7D2E'} />
-          </div>
-
-          <div className="text-xs text-muted-foreground">Cosecha est: {fd(lote.fechaVenta)}</div>
 
           <div className="rounded-md border px-3 py-2">
             <div className="mb-1.5 flex items-center justify-between">

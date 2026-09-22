@@ -509,6 +509,10 @@ export interface EditarLoteParams {
   varNom: string;
   plantas: number;
   fechaInicio: string;
+  // Si se omite, el bancal actual no se toca (ej. lotes en mesa de
+  // plantines, que no tienen bancal). Si se pasa, reubica el lote — misma
+  // lógica de migrar el cupo que un traspaso, pero sin cambiar de etapa.
+  bancalId?: string | null;
   autor?: string;
 }
 
@@ -519,13 +523,15 @@ export function editarLote(draft: EstadoInvernadero, params: EditarLoteParams) {
   const cambiaVar = l.varId !== params.varId;
   const cambiaCantidad = l.plantas !== params.plantas;
   const cambiaFecha = l.fechaInicio !== params.fechaInicio;
+  const nuevoBancalId = params.bancalId !== undefined ? params.bancalId : l.bancalId;
+  const cambiaBancal = nuevoBancalId !== l.bancalId;
   const plantasRestantesNuevo = cambiaCantidad
     ? Math.max(0, l.plantasRestantes + (params.plantas - l.plantas))
     : l.plantasRestantes;
 
-  if (l.bancalId && (cambiaVar || cambiaCantidad)) {
-    remSlot(draft.bancales, l.bancalId, l.varId, l.plantasRestantes);
-    addSlot(draft.bancales, l.bancalId, params.varId, params.varNom, plantasRestantesNuevo);
+  if (cambiaVar || cambiaCantidad || cambiaBancal) {
+    if (l.bancalId) remSlot(draft.bancales, l.bancalId, l.varId, l.plantasRestantes);
+    if (nuevoBancalId) addSlot(draft.bancales, nuevoBancalId, params.varId, params.varNom, plantasRestantesNuevo);
   }
 
   if (cambiaVar) {
@@ -537,6 +543,10 @@ export function editarLote(draft: EstadoInvernadero, params: EditarLoteParams) {
     detalles.push(`Cantidad sembrada: ${l.plantas} → ${params.plantas}`);
     l.plantas = params.plantas;
     l.plantasRestantes = plantasRestantesNuevo;
+  }
+  if (cambiaBancal) {
+    detalles.push(`Bancal: ${l.bancalId ?? 'sin asignar'} → ${nuevoBancalId ?? 'sin asignar'}`);
+    l.bancalId = nuevoBancalId;
   }
   if (cambiaFecha) {
     detalles.push(`Fecha de siembra: ${fd(l.fechaInicio)} → ${fd(params.fechaInicio)}`);
