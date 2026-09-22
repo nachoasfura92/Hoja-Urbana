@@ -24,9 +24,9 @@ export function RegistrarPage() {
   const [plantas, setPlantas] = useState<number | ''>('');
   const [bandera, setBandera] = useState<number | ''>('');
   const [banderaTocada, setBanderaTocada] = useState(false);
-  const [dp, setDp] = useState(14);
-  const [de, setDe] = useState(21);
-  const [da, setDa] = useState(21);
+  const [dp, setDp] = useState<number | ''>(14);
+  const [de, setDe] = useState<number | ''>(21);
+  const [da, setDa] = useState<number | ''>(21);
   const [notas, setNotas] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -65,9 +65,9 @@ export function RegistrarPage() {
         varNombre: gv(draft.vars, vIdNum).nombre,
         plantas: plantas || 0,
         fechaSiembra: fecha,
-        dp,
-        de,
-        da,
+        dp: dp || 14,
+        de: de || 21,
+        da: da || 21,
         notas,
         bandera,
         autor: displayName || email || undefined,
@@ -166,15 +166,30 @@ export function RegistrarPage() {
           <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1.5">
               <Label>Días plantines</Label>
-              <Input type="number" min={1} value={dp || ''} onChange={(e) => setDp(parseInt(e.target.value, 10) || 1)} />
+              <Input
+                type="number"
+                min={1}
+                value={dp}
+                onChange={(e) => setDp(e.target.value ? parseInt(e.target.value, 10) : '')}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label>Días engorda</Label>
-              <Input type="number" min={1} value={de || ''} onChange={(e) => setDe(parseInt(e.target.value, 10) || 1)} />
+              <Input
+                type="number"
+                min={1}
+                value={de}
+                onChange={(e) => setDe(e.target.value ? parseInt(e.target.value, 10) : '')}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label>Días adulto</Label>
-              <Input type="number" min={1} value={da || ''} onChange={(e) => setDa(parseInt(e.target.value, 10) || 1)} />
+              <Input
+                type="number"
+                min={1}
+                value={da}
+                onChange={(e) => setDa(e.target.value ? parseInt(e.target.value, 10) : '')}
+              />
             </div>
           </div>
           <div className="grid gap-1.5">

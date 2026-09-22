@@ -54,7 +54,21 @@ export function NutricionPage() {
   const [editandoMedicion, setEditandoMedicion] = useState<MedicionNutricion | null>(null);
 
   function guardarConfig() {
-    update((draft) => actualizarConfigNutricion(draft, config));
+    // Si algún campo de periodicidad quedó vacío (NaN) al momento de
+    // guardar, se usa 1 día como resguardo — el campo se muestra vacío
+    // mientras se edita, pero nunca se guarda un valor inválido.
+    const sanear = (dias: Record<EstanqueId, number>) =>
+      Object.fromEntries(
+        Object.entries(dias).map(([k, v]) => [k, Number.isNaN(v) || !v ? 1 : v])
+      ) as Record<EstanqueId, number>;
+    const configSegura: NutricionConfig = {
+      ...config,
+      periodicidadPhDias: sanear(config.periodicidadPhDias),
+      periodicidadEcDias: sanear(config.periodicidadEcDias),
+      periodicidadRecambioDias: sanear(config.periodicidadRecambioDias),
+    };
+    setConfig(configSegura);
+    update((draft) => actualizarConfigNutricion(draft, configSegura));
   }
 
   function recambioHoy(estanqueId: EstanqueId) {
@@ -159,7 +173,10 @@ export function NutricionPage() {
                     onChange={(ev) =>
                       setConfig((c) => ({
                         ...c,
-                        periodicidadPhDias: { ...c.periodicidadPhDias, [e.id]: parseInt(ev.target.value, 10) || 1 },
+                        periodicidadPhDias: {
+                          ...c.periodicidadPhDias,
+                          [e.id]: ev.target.value ? parseInt(ev.target.value, 10) : NaN,
+                        },
                       }))
                     }
                   />
@@ -173,7 +190,10 @@ export function NutricionPage() {
                     onChange={(ev) =>
                       setConfig((c) => ({
                         ...c,
-                        periodicidadEcDias: { ...c.periodicidadEcDias, [e.id]: parseInt(ev.target.value, 10) || 1 },
+                        periodicidadEcDias: {
+                          ...c.periodicidadEcDias,
+                          [e.id]: ev.target.value ? parseInt(ev.target.value, 10) : NaN,
+                        },
                       }))
                     }
                   />
@@ -189,7 +209,7 @@ export function NutricionPage() {
                         ...c,
                         periodicidadRecambioDias: {
                           ...c.periodicidadRecambioDias,
-                          [e.id]: parseInt(ev.target.value, 10) || 1,
+                          [e.id]: ev.target.value ? parseInt(ev.target.value, 10) : NaN,
                         },
                       }))
                     }
