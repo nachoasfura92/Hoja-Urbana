@@ -146,6 +146,7 @@ export function confirmarSiembra(draft: EstadoInvernadero, p: ConfirmarSiembraPa
     notas: p.notas,
     bancalId: null,
     banderas: p.bandera ? [p.bandera] : [],
+    podas: [],
     fechaVenta: fmas(p.fechaSiembra, p.dp + p.de + p.da),
     movimientos: [
       {
@@ -244,6 +245,10 @@ export function ejecutarMovimiento(draft: EstadoInvernadero, params: EjecutarMov
       // La bandera sigue al lote toda su vida (se hereda del spread `...l`
       // sin tocarla acá) — identifica el lote incluso en bancales; recién se
       // libera cuando el lote se cosecha por completo (ver cosechar()).
+      // Las podas NO se heredan: al separarse, los tubos se renumeran desde
+      // 1 en el lote nuevo y ya no corresponden a los tubos podados del
+      // lote original.
+      podas: [],
       movimientos: [
         { id: draft.nextId++, fecha: fechaMov, accion: `→ ${sig}`, detalle: `${plantasM} plantas${bL} (separado)`, autor },
       ],
@@ -333,6 +338,9 @@ export function moverEntreBancales(draft: EstadoInvernadero, params: MoverEntreB
       plantas: plantasM,
       plantasRestantes: plantasM,
       bancalId: params.bancDestino,
+      // Igual que al separar un traspaso: los tubos se renumeran en el lote
+      // nuevo, así que no se heredan las podas del original.
+      podas: [],
       movimientos: [{ id: draft.nextId++, fecha: params.fecha, accion: 'Reubicación', detalle, autor: params.autor }],
     };
     draft.lotes.push(nl);
@@ -494,6 +502,31 @@ export function eliminarBandera(draft: EstadoInvernadero, params: EliminarBander
   if (!l.movimientos) l.movimientos = [];
   l.movimientos.push({ id: draft.nextId++, fecha: hoy(), accion: 'Bandera eliminada', detalle, autor: params.autor });
   log(draft, 'Bandera eliminada', `${l.varNom}: ${detalle}`, params.autor);
+}
+
+// Registra el corte de hojas (poda al ras) de uno o varios tubos de un
+// lote. El tubo sigue en pie — no se tocan plantas ni bancales — solo
+// queda la fecha del corte para saber cuándo volver a podarlo.
+export interface RegistrarPodaParams {
+  loteId: number;
+  tubos: number[];
+  fecha: string;
+  autor?: string;
+}
+
+export function registrarPoda(draft: EstadoInvernadero, params: RegistrarPodaParams) {
+  const l = draft.lotes.find((x) => x.id === params.loteId);
+  if (!l || !params.tubos.length) return;
+  if (!l.podas) l.podas = [];
+  params.tubos.forEach((tubo) => {
+    l.podas.push({ id: draft.nextId++, tubo, fecha: params.fecha, autor: params.autor });
+  });
+  const tubosTxt = params.tubos.map((t) => `N°${t}`).join(', ');
+  const plural = params.tubos.length > 1 ? 's' : '';
+  const detalle = `Tubo${plural} ${tubosTxt}`;
+  if (!l.movimientos) l.movimientos = [];
+  l.movimientos.push({ id: draft.nextId++, fecha: params.fecha, accion: 'Poda', detalle, autor: params.autor });
+  log(draft, 'Poda', `${l.varNom}: tubo${plural} ${tubosTxt}`, params.autor);
 }
 
 // Corrige a mano la especie, la cantidad sembrada o la fecha de siembra de

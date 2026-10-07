@@ -24,6 +24,7 @@ import type {
   Movimiento,
   PedidoCliente,
   PlanItem,
+  PodaRecord,
   RecambioAgua,
   Variedad,
 } from './types';
@@ -51,6 +52,7 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     variedadesRes,
     lotesRes,
     movimientosRes,
+    podasRes,
     slotsRes,
     planRes,
     cubosRes,
@@ -68,6 +70,7 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     supabase.from('variedades').select('id, nombre, marca, tipo').order('id'),
     supabase.from('lotes').select('*').order('id'),
     supabase.from('lote_movimientos').select('*').order('id'),
+    supabase.from('lote_podas').select('*').order('id'),
     supabase.from('bancal_slots').select('bancal_id, variedad_id, plantas'),
     supabase.from('plan_siembra').select('*').order('id'),
     supabase.from('inventario_cubos').select('cantidad').eq('id', 1).maybeSingle(),
@@ -87,6 +90,7 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     variedadesRes,
     lotesRes,
     movimientosRes,
+    podasRes,
     slotsRes,
     planRes,
     semillasRes,
@@ -120,6 +124,13 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     movimientosPorLote.set(m.lote_id, arr);
   });
 
+  const podasPorLote = new Map<number, PodaRecord[]>();
+  (podasRes.data || []).forEach((p) => {
+    const arr = podasPorLote.get(p.lote_id) || [];
+    arr.push({ id: p.id, tubo: p.tubo, fecha: p.fecha, autor: p.autor ?? undefined });
+    podasPorLote.set(p.lote_id, arr);
+  });
+
   const lotes: Lote[] = (lotesRes.data || []).map((l) => ({
     id: l.id,
     varId: l.variedad_id,
@@ -137,6 +148,7 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     fechaVenta: l.fecha_venta,
     movimientos: movimientosPorLote.get(l.id) || [],
     banderas: l.banderas ?? [],
+    podas: podasPorLote.get(l.id) || [],
   }));
 
   const bancales: Bancales = {};
@@ -273,6 +285,7 @@ export async function cargarEstadoDesdeTablas(supabase: DB): Promise<EstadoInver
     ...vars.map((v) => v.id),
     ...lotes.map((l) => l.id),
     ...lotes.flatMap((l) => l.movimientos.map((m) => m.id)),
+    ...lotes.flatMap((l) => l.podas.map((p) => p.id)),
     ...plan.map((p) => p.id),
     ...historial.map((h) => h.id),
     ...cosechas.map((c) => c.id),
@@ -333,6 +346,17 @@ export async function guardarEstadoEnTablas(supabase: DB, state: EstadoInvernade
     }))
   );
   await upsertYPodar(supabase, 'lote_movimientos', movimientoRows, 'id');
+
+  const podaRows = state.lotes.flatMap((l) =>
+    (l.podas || []).map((p) => ({
+      id: p.id,
+      lote_id: l.id,
+      tubo: p.tubo,
+      fecha: p.fecha,
+      autor: p.autor ?? null,
+    }))
+  );
+  await upsertYPodar(supabase, 'lote_podas', podaRows, 'id');
 
   // bancal_slots no tiene una identidad propia estable entre guardados: acá
   // se recalcula por completo desde state.bancales cada vez, así que el id

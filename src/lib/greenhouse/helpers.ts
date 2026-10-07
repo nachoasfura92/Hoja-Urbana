@@ -16,6 +16,7 @@ import type {
   NutricionConfig,
   PedidoCliente,
   PlanItem,
+  PodaRecord,
   RecambioAgua,
   TipoMedicionNutricion,
   Variedad,
@@ -110,6 +111,28 @@ export function varLabelPorId(vars: Variedad[], varId: number): string {
 export function fracTubosStr(p: number): string {
   const t = p / PT;
   return t === Math.floor(t) ? t.toString() : (Math.round(t * 100) / 100).toString();
+}
+
+// ── Podas (cosecha de hoja suelta por tubo, sin sacar la planta) ──────────
+
+// Cantidad de tubos físicos del lote (redondea hacia arriba: un tubo con
+// menos de 30 plantas sigue siendo un tubo entero a podar).
+export function numTubosLote(l: { plantasRestantes: number }): number {
+  return Math.ceil(l.plantasRestantes / PT);
+}
+
+// Último corte registrado de un tubo puntual (o null si nunca se podó).
+export function ultimaPodaDeTubo(podas: PodaRecord[], tubo: number): PodaRecord | null {
+  const delTubo = (podas || []).filter((p) => p.tubo === tubo);
+  if (!delTubo.length) return null;
+  return delTubo.reduce((a, b) => (a.fecha > b.fecha ? a : b));
+}
+
+// Poda más reciente de cualquier tubo del lote (o null si nunca se podó
+// ninguno) — se usa para el dato grande "días desde la última poda".
+export function ultimaPodaLote(podas: PodaRecord[]): PodaRecord | null {
+  if (!podas || !podas.length) return null;
+  return podas.reduce((a, b) => (a.fecha > b.fecha ? a : b));
 }
 
 // ── Bancales (usan plantas, no tubos, para soportar fracciones) ────────────

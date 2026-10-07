@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { LineChart as LineChartIcon, Minus, Pencil, Plus, X } from 'lucide-react';
+import { LineChart as LineChartIcon, Minus, Pencil, Plus, Scissors, X } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import {
   editarPauta,
   eliminarBandera,
   eliminarPlantas,
+  registrarPoda,
 } from '@/lib/greenhouse/actions';
 import {
   banderasEnUso,
@@ -29,10 +30,14 @@ import {
   fd,
   fracTubosStr,
   gv,
+  hoy,
   maxPlantas,
+  numTubosLote,
   plantasEnBanc,
   serieNutricionLote,
   ubicacionLote,
+  ultimaPodaDeTubo,
+  ultimaPodaLote,
   varLabel,
   varLabelPorId,
 } from '@/lib/greenhouse/helpers';
@@ -110,6 +115,9 @@ export function LoteModal() {
   const [editandoBanderaOriginal, setEditandoBanderaOriginal] = useState<number | null>(null);
   const [banderaEditNueva, setBanderaEditNueva] = useState<number | ''>('');
 
+  const [tubosSeleccionados, setTubosSeleccionados] = useState<number[]>([]);
+  const [fechaPoda, setFechaPoda] = useState(hoy());
+
   // Cierra los sub-formularios (eliminar, agregar, editar pauta/bandera) al
   // cambiar de lote (patrón "ajustar estado durante el render" en vez de un
   // efecto).
@@ -121,6 +129,8 @@ export function LoteModal() {
     setEliminarOpen(false);
     setAgregandoBandera(false);
     setEditandoBanderaOriginal(null);
+    setTubosSeleccionados([]);
+    setFechaPoda(hoy());
   }
 
   if (!lote) {
@@ -137,6 +147,9 @@ export function LoteModal() {
   const sig = SIGUIENTE[lote.etapa];
   const misBanderas = new Set(lote.banderas || []);
   const banderasDeOtros = new Set([...banderasEnUso(state.lotes)].filter((b) => !misBanderas.has(b)));
+  const numTubos = numTubosLote(lote);
+  const ultimaPoda = ultimaPodaLote(lote.podas);
+  const diasUltimaPoda = ultimaPoda ? dd(ultimaPoda.fecha) : null;
   const agregarDuplicada =
     banderaNueva !== '' && (misBanderas.has(banderaNueva) || banderasDeOtros.has(banderaNueva));
   const editarDuplicada =
@@ -232,6 +245,16 @@ export function LoteModal() {
     update((draft) => eliminarBandera(draft, { loteId: lote!.id, bandera: b, autor }));
   }
 
+  function toggleTubo(t: number) {
+    setTubosSeleccionados((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  }
+
+  function confirmarPoda() {
+    if (!tubosSeleccionados.length || !fechaPoda) return;
+    update((draft) => registrarPoda(draft, { loteId: lote!.id, tubos: tubosSeleccionados, fecha: fechaPoda, autor }));
+    setTubosSeleccionados([]);
+  }
+
   function handleAvanzar() {
     closeLote();
     if (sig === 'cosechado') openCosechar(lote!.id);
@@ -252,7 +275,18 @@ export function LoteModal() {
           </DialogHeader>
 
           <div className="grid grid-cols-2 gap-2">
-            <MiniStat label="Días desde germinación" value={dd(lote.fechaInicio)} />
+            <HeroStat label="Días desde germinación" value={dd(lote.fechaInicio)} tone="neutral" />
+            <HeroStat
+              label="Días desde última poda"
+              value={diasUltimaPoda ?? '—'}
+              sub={ultimaPoda ? `Tubo N°${ultimaPoda.tubo} · ${fd(ultimaPoda.fecha)}` : 'Sin podas aún'}
+              tone={
+                diasUltimaPoda == null ? 'neutral' : diasUltimaPoda >= 25 ? 'destructive' : diasUltimaPoda >= 15 ? 'warning' : 'success'
+              }
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
             <MiniStat label="Ubicación" value={ubicacionLote(lote)} />
             <MiniStat label="Plantas" value={lote.plantasRestantes} />
             <MiniStat label="Tubos equiv." value={fracTubosStr(lote.plantasRestantes)} />
@@ -264,6 +298,62 @@ export function LoteModal() {
               <span>Cosecha est: {fd(lote.fechaVenta)}</span>
             </div>
             <MiniProgress value={pct} color={pct >= 100 ? 'var(--success)' : '#2A7D2E'} />
+          </div>
+
+          <div className="rounded-md border px-3 py-2">
+            <div className="mb-1.5 flex items-center justify-between">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Tubos del lote ({numTubos})
+              </h4>
+              {tubosSeleccionados.length > 0 && (
+                <span className="text-xs font-medium text-primary">
+                  {tubosSeleccionados.length} seleccionado{tubosSeleccionados.length > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: numTubos }, (_, idx) => idx + 1).map((t) => {
+                const ultimaDeTubo = ultimaPodaDeTubo(lote.podas, t);
+                const diasTubo = ultimaDeTubo ? dd(ultimaDeTubo.fecha) : null;
+                const seleccionado = tubosSeleccionados.includes(t);
+                const tono =
+                  diasTubo == null
+                    ? 'border-border bg-muted text-muted-foreground'
+                    : diasTubo >= 25
+                      ? 'border-destructive bg-destructive/10 text-destructive'
+                      : diasTubo >= 15
+                        ? 'border-warning bg-warning/10 text-warning'
+                        : 'border-success bg-success/10 text-success';
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleTubo(t)}
+                    title={ultimaDeTubo ? `Última poda: ${fd(ultimaDeTubo.fecha)} (${diasTubo}d)` : 'Sin podas registradas'}
+                    className={`flex h-14 w-10 flex-col items-center justify-center gap-0.5 rounded-full border-2 text-[11px] font-medium transition-all ${tono} ${
+                      seleccionado ? 'ring-2 ring-primary ring-offset-1' : 'hover:brightness-95'
+                    }`}
+                  >
+                    <Scissors className={`size-3 ${seleccionado ? 'opacity-100' : 'opacity-50'}`} />
+                    <span>#{t}</span>
+                    <span className="text-[9px] opacity-70">{diasTubo == null ? '—' : `${diasTubo}d`}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Verde: podado hace menos de 15 días · Ámbar: 15-24 días · Rojo: 25+ días (listo para podar de nuevo) · Gris: nunca podado
+            </p>
+            {tubosSeleccionados.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 border-t pt-2">
+                <Label className="text-xs shrink-0">Fecha de la poda</Label>
+                <DatePicker value={fechaPoda} onChange={setFechaPoda} />
+                <Button size="sm" className="ml-auto gap-1" onClick={confirmarPoda} disabled={!fechaPoda}>
+                  <Scissors className="size-3.5" />
+                  Registrar poda
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="rounded-md border px-3 py-2">
@@ -598,6 +688,33 @@ function MiniStat({ label, value }: { label: string; value: string | number }) {
     <div className="rounded-md bg-muted/60 px-2.5 py-2">
       <div className="text-[11px] text-muted-foreground">{label}</div>
       <div className="text-sm font-medium">{value}</div>
+    </div>
+  );
+}
+
+const HERO_TONE_CLASSES: Record<'neutral' | 'success' | 'warning' | 'destructive', string> = {
+  neutral: 'border-border bg-muted/60',
+  success: 'border-success bg-success/10',
+  warning: 'border-warning bg-warning/10',
+  destructive: 'border-destructive bg-destructive/10',
+};
+
+function HeroStat({
+  label,
+  value,
+  sub,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  tone?: 'neutral' | 'success' | 'warning' | 'destructive';
+}) {
+  return (
+    <div className={`rounded-lg border-2 px-3 py-2.5 ${HERO_TONE_CLASSES[tone]}`}>
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="text-3xl font-bold leading-tight tabular-nums">{value}</div>
+      {sub && <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>}
     </div>
   );
 }

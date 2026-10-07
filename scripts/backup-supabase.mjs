@@ -20,6 +20,7 @@ const TABLAS = [
   'bancales',
   'lotes',
   'lote_movimientos',
+  'lote_podas',
   'bancal_slots',
   'plan_siembra',
   'inventario_cubos',

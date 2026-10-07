@@ -18,6 +18,16 @@ export interface Movimiento {
   autor?: string;
 }
 
+// Una poda (corte de hojas al ras) de un tubo puntual de un lote. Después
+// de podado, ese tubo vuelve a generar hojas y puede volver a podarse —
+// cada corte queda como un registro propio, no se sobreescribe el anterior.
+export interface PodaRecord {
+  id: number;
+  tubo: number; // N° de tubo dentro del lote (1-based)
+  fecha: string;
+  autor?: string;
+}
+
 export interface Lote {
   id: number;
   varId: number;
@@ -40,6 +50,8 @@ export interface Lote {
   // vida y se liberan (banderas queda vacío) una vez que el lote se cosecha
   // por completo.
   banderas: number[];
+  // Historial de podas por tubo (cosecha de hoja suelta sin sacar la planta).
+  podas: PodaRecord[];
 }
 
 export interface PlanItem {
