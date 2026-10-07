@@ -60,7 +60,7 @@ export interface BancalSlot {
   plantas: number;
 }
 
-// Clave: "eng_1".."eng_8" (engorda) o "adu_1".."adu_16" (adulto)
+// Clave: "eng_1".."eng_9" (engorda) o "adu_1".."adu_18" (adulto)
 export type Bancales = Record<string, BancalSlot[]>;
 
 export interface Inventario {

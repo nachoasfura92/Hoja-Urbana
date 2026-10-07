@@ -16,14 +16,14 @@ interface BancalRef {
 }
 
 // Distribución física real del invernadero (dos naves):
-// Nave 1: engorda 1-4 + adulto 1-8. Nave 2: engorda 5-9 + adulto 9-16.
+// Nave 1: engorda 1-4 + adulto 1-8. Nave 2: engorda 5-9 + adulto 9-18.
 const NAVE_1: BancalRef[] = [
   ...[1, 2, 3, 4].map((num) => ({ tipo: 'eng' as const, num })),
   ...[1, 2, 3, 4, 5, 6, 7, 8].map((num) => ({ tipo: 'adu' as const, num })),
 ];
 const NAVE_2: BancalRef[] = [
   ...[5, 6, 7, 8, 9].map((num) => ({ tipo: 'eng' as const, num })),
-  ...[9, 10, 11, 12, 13, 14, 15, 16].map((num) => ({ tipo: 'adu' as const, num })),
+  ...[9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((num) => ({ tipo: 'adu' as const, num })),
 ];
 
 // > 5 días: verde. Entre 2 y 5: amarillo. Menos de 2: rojo.
@@ -93,7 +93,7 @@ function BancalCell({ tipo, num }: BancalRef) {
 
 function NaveGrid({ bancales }: { bancales: BancalRef[] }) {
   return (
-    <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-9 xl:grid-cols-[repeat(13,minmax(0,1fr))]">
+    <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-9 xl:grid-cols-[repeat(15,minmax(0,1fr))]">
       {bancales.map((b) => (
         <BancalCell key={`${b.tipo}_${b.num}`} tipo={b.tipo} num={b.num} />
       ))}
@@ -137,7 +137,7 @@ export function BancalesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
             <LayoutGrid className="size-4 text-muted-foreground" />
-            Nave 2 — Engorda 5-9 · Adulto 9-16
+            Nave 2 — Engorda 5-9 · Adulto 9-18
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -58,9 +58,9 @@ export function MoverModal() {
     if (modoReubicar)
       return [
         { tipo: 'eng', max: 9 },
-        { tipo: 'adu', max: 16 },
+        { tipo: 'adu', max: 18 },
       ];
-    return sig === 'engorda' ? [{ tipo: 'eng', max: 9 }] : [{ tipo: 'adu', max: 16 }];
+    return sig === 'engorda' ? [{ tipo: 'eng', max: 9 }] : [{ tipo: 'adu', max: 18 }];
   }, [modoReubicar, sig]);
 
   const opciones = useMemo(() => {

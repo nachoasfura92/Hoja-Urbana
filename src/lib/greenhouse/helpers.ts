@@ -125,7 +125,7 @@ export function plantasEnBanc(bancales: Bancales, k: string): number {
 
 // Capacidad en tubos por bancal: la mayoría siguen la capacidad estándar de
 // su tipo (20 engorda / 10 adulto), salvo estas excepciones físicas reales.
-const CAPACIDAD_TUBOS_ESPECIAL: Record<string, number> = { eng_5: 15, adu_16: 5 };
+const CAPACIDAD_TUBOS_ESPECIAL: Record<string, number> = { eng_5: 15, adu_18: 5 };
 
 export function capacidadTubos(k: string): number {
   return CAPACIDAD_TUBOS_ESPECIAL[k] ?? (k.startsWith('eng') ? 20 : 10);
@@ -415,7 +415,7 @@ export function proximaBandera(lotes: Lote[], excluir?: Set<number>): number {
 // Primer bancal del tipo dado con espacio libre suficiente para `plantas`;
 // si ninguno alcanza, devuelve el primero con algo de espacio libre (o null).
 export function primerBancalConEspacio(bancales: Bancales, tipo: 'eng' | 'adu', plantas: number): string | null {
-  const maxBanc = tipo === 'eng' ? 9 : 16;
+  const maxBanc = tipo === 'eng' ? 9 : 18;
   let fallback: string | null = null;
   for (let i = 1; i <= maxBanc; i++) {
     const k = `${tipo}_${i}`;

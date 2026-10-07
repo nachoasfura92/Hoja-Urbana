@@ -69,7 +69,7 @@ export function LoteModal() {
   const bancalOpciones = useMemo(() => {
     if (!lote || lote.etapa === 'plantines') return [];
     const tipo = lote.etapa === 'engorda' ? 'eng' : 'adu';
-    const max = tipo === 'eng' ? 9 : 16;
+    const max = tipo === 'eng' ? 9 : 18;
     return Array.from({ length: max }, (_, idx) => {
       const i = idx + 1;
       const k = `${tipo}_${i}`;

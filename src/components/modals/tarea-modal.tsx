@@ -42,7 +42,7 @@ export function TareaModal({ tarea, onClose }: { tarea: TareaHoy | null; onClose
 
   const esSiembra = tarea?.tipo === 'sembrar';
   const tipoBancal = tarea?.tipo === 'traspaso_engorda' ? 'eng' : 'adu';
-  const maxBanc = tipoBancal === 'eng' ? 9 : 16;
+  const maxBanc = tipoBancal === 'eng' ? 9 : 18;
 
   const opciones = useMemo(() => {
     if (!tarea || esSiembra) return [];
