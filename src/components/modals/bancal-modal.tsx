@@ -90,6 +90,7 @@ export function BancalModal() {
               const dObj = tipo === 'eng' ? l.de : l.da;
               const pct = Math.min(100, Math.round((dias / dObj) * 100));
               const drest = dr(l.fechaVenta);
+              const diasGerminacion = dd(l.fechaInicio);
               return (
                 <div
                   key={l.id}
@@ -99,38 +100,46 @@ export function BancalModal() {
                   onKeyDown={(e) => e.key === 'Enter' && irA(openLote, l.id)}
                   className="cursor-pointer rounded-md border px-3 py-2 transition-colors hover:border-primary"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
                       {varLabelPorId(state.vars, l.varId)}
                       <BanderaBadges numeros={l.banderas} />
                     </div>
-                    <div className="flex gap-1">
-                      {tipo === 'adu' && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <div
+                        className="rounded-md bg-muted px-2 py-0.5 text-sm font-bold tabular-nums"
+                        title="Días desde germinación"
+                      >
+                        {diasGerminacion}d
+                      </div>
+                      <div className="flex gap-1">
+                        {tipo === 'adu' && (
+                          <Button
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              irA(openCosechar, l.id);
+                            }}
+                          >
+                            Cosechar
+                          </Button>
+                        )}
                         <Button
                           size="sm"
+                          variant="outline"
                           className="h-7 px-2 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            irA(openCosechar, l.id);
+                            irA(openMover, l.id);
                           }}
                         >
-                          Cosechar
+                          Mover
                         </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 px-2 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          irA(openMover, l.id);
-                        }}
-                      >
-                        Mover
-                      </Button>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="mt-1 text-xs text-muted-foreground">
                     {ubicacionLote(l)} · día {dias}/{dObj} de crecimiento · {l.plantasRestantes} plantas ·{' '}
                     {fracTubosStr(l.plantasRestantes)} tubos
                   </div>
