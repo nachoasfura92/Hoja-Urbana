@@ -174,6 +174,25 @@ export function remSlot(bancales: Bancales, k: string, vId: number, p: number) {
   }
 }
 
+// Reconstruye `bancales` desde cero a partir de `lotes` (fuente de verdad),
+// en vez de confiar en los addSlot/remSlot puntuales que cada acción hace al
+// mover/sembrar/cosechar/mermar un lote. Un solo olvido o un orden distinto
+// en cualquiera de esas acciones deja plantas "fantasma" en un bancal (ver
+// bug reportado: E1 marcaba más plantas que la suma real de sus lotes) — acá
+// se corta ese problema de raíz recalculando siempre, no reparándolo caso a
+// caso. Se llama automáticamente en cada guardado (ver context.tsx), así que
+// `bancales` nunca puede quedar desincronizado de `lotes` por más de un
+// `update()`.
+export function recomputeBancales(lotes: Lote[]): Bancales {
+  const nuevo: Bancales = {};
+  (lotes || [])
+    .filter((l) => l.bancalId && l.etapa !== 'cosechado' && l.plantasRestantes > 0)
+    .forEach((l) => {
+      addSlot(nuevo, l.bancalId as string, l.varId, l.varNom, l.plantasRestantes);
+    });
+  return nuevo;
+}
+
 // ── Plan / siembra ───────────────────────────────────────────────────────
 
 export function sembradoEn(lotes: Lote[], vId: number, f: string): number {

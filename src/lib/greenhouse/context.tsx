@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { defS } from './helpers';
+import { defS, recomputeBancales } from './helpers';
 import { cargarEstadoDesdeTablas, guardarEstadoEnTablas } from './repository';
 import type { EstadoInvernadero } from './types';
 
@@ -90,6 +90,7 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
       setState((prev) => {
         const optimista = structuredClone(prev);
         mutator(optimista);
+        optimista.bancales = recomputeBancales(optimista.lotes);
         return optimista;
       });
 
@@ -108,6 +109,7 @@ export function GreenhouseProvider({ children }: { children: React.ReactNode }) 
         }
         const next = structuredClone(base);
         mutator(next);
+        next.bancales = recomputeBancales(next.lotes);
         setState(next);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
         try {
